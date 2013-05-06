@@ -88,27 +88,36 @@ multiEpStrings[NAMING_EXTEND] = "Extend"
 multiEpStrings[NAMING_LIMITED_EXTEND] = "Extend (Limited)"
 
 class Quality:                                                        
-    NONE = 0              # 0                                         
-    SDTV = 1              # 1                                         
-    SDDVD = 1 << 1        # 2                                         
-    HDTV = 1 << 2         # 4                                         
-    RAWHDTV = 1 << 3      # 8  -- 720p/1080i mpeg2 (trollhd releases) 
-    FULLHDTV = 1 << 4     # 16 -- 1080p HDTV (QCF releases)           
-    HDWEBDL = 1 << 5      # 32                                        
-    FULLHDWEBDL = 1 << 6  # 64 -- 1080p web-dl                        
-    HDBLURAY = 1 << 7     # 128                                       
-    FULLHDBLURAY = 1 << 8 # 256                                       
 
+    NONE = 0               # 0                                         
+    SDTV = 1               # 1                                         
+    SDWEBRIP = 1 << 1      # 2
+    SDWEBDL = 1 << 2       # 4
+    SDDVD = 1 << 3         # 8                                         
+    HDTV = 1 << 4          # 16                                         
+    RAWHDTV = 1 << 5       # 32  -- 720p/1080i mpeg2 (trollhd releases) 
+    FULLHDTV = 1 << 6      # 64  -- 1080p HDTV (QCF releases)           
+    HDWEBRIP = 1 << 7      # 128 -- 720p WEBRip
+    FULLHDWEBRIP = 1 << 8  # 256 -- 1080p WEBRip
+    HDWEBDL = 1 << 9       # 512                                        
+    FULLHDWEBDL = 1 << 10  # 1024 -- 1080p web-dl                        
+    HDBLURAY = 1 << 11     # 2048                                       
+    FULLHDBLURAY = 1 << 12 # 4096                                       
+        
     # put these bits at the other end of the spectrum, far enough out that they shouldn't interfere
     UNKNOWN = 1 << 15     # 32768
 
     qualityStrings = {NONE: "N/A",
                       UNKNOWN: "Unknown",
                       SDTV: "SD TV",
+                      SDWEBRIP: "SD WEBRip",
+                      SDWEBDL: "SD WEB-DL",
                       SDDVD: "SD DVD",
                       HDTV: "HD TV",
                       RAWHDTV: "RawHD TV",
                       FULLHDTV: "1080p HD TV",
+                      HDWEBRIP: "720p WEBRip",
+                      FULLHDWEBRIP: "1080p WEBRip",
                       HDWEBDL: "720p WEB-DL",
                       FULLHDWEBDL: "1080p WEB-DL",
                       HDBLURAY: "720p BluRay",
@@ -166,29 +175,6 @@ class Quality:
             regex_match = re.search(regex, name, re.I)
             if regex_match:
                 return x
-        
-#        checkName = lambda list, func: func([re.search(x, name, re.I) for x in list])
-#
-#        if checkName(["(pdtv|hdtv|dsr|tvrip|web.dl|webrip).(xvid|x264|h.?264)"], all) and not checkName(["(720|1080)[pi]"], all):
-#            return Quality.SDTV
-#        elif checkName(["(dvdrip|bdrip)(.ws)?.(xvid|divx|x264)"], any) and not checkName(["(720|1080)[pi]"], all):
-#            return Quality.SDDVD
-#        elif checkName(["720p", "hdtv", "x264"], all) or checkName(["hr.ws.pdtv.x264"], any) and not checkName(["(1080)[pi]"], all):          
-#            return Quality.HDTV                                                                        
-#        elif checkName(["720p|1080i", "hdtv", "mpeg2"], all):
-#            return Quality.RAWHDTV                                                                     
-#        elif checkName(["1080p", "hdtv", "x264"], all):         
-#            return Quality.FULLHDTV                                                                    
-#        elif checkName(["720p", "web.dl|webrip", "h.?264"], all) or checkName(["720p", "itunes", "h.?264"], all):
-#            return Quality.HDWEBDL                                                                     
-#        elif checkName(["1080p", "web.dl|webrip", "h.?264"], all) or checkName(["1080p", "itunes", "h.?264"], all):     
-#            return Quality.FULLHDWEBDL                                                                 
-#        elif checkName(["720p", "bluray|hddvd", "x264"], all):
-#            return Quality.HDBLURAY                                                                    
-#        elif checkName(["1080p", "bluray|hddvd", "x264"], all):
-#            return Quality.FULLHDBLURAY
-#        else:
-#            return Quality.UNKNOWN
 
     @staticmethod
     def sceneQuality(name):
@@ -200,8 +186,12 @@ class Quality:
 
         checkName = lambda list, func: func([re.search(x, name, re.I) for x in list])
 
-        if checkName(["(pdtv|hdtv|dsr|tvrip|web.dl|webrip).(xvid|x264|h.?264)"], all) and not checkName(["(720|1080)[pi]"], all):
+        if checkName(["(pdtv|hdtv|dsr|tvrip).(xvid|x264)"], all) and not checkName(["(720|1080)[pi]"], all):
             return Quality.SDTV
+        if checkName(["webrip"], all) and not checkName(["(720|1080)[pi]"], all):
+            return Quality.SDWEBRIP
+        if checkName(["web.dl", "h.?264"], all) and not checkName(["(720|1080)[pi]"], all):
+            return Quality.SDWEBDL
         elif checkName(["(dvdrip|bdrip)(.ws)?.(xvid|divx|x264)"], any) and not checkName(["(720|1080)[pi]"], all):
             return Quality.SDDVD
         elif checkName(["720p", "hdtv", "x264"], all) or checkName(["hr.ws.pdtv.x264"], any) and not checkName(["(1080)[pi]"], all):          
@@ -210,14 +200,14 @@ class Quality:
             return Quality.RAWHDTV                                                                     
         elif checkName(["1080p", "hdtv", "x264"], all):         
             return Quality.FULLHDTV                                                                    
+        elif checkName(["720p", "webrip", "x264"], all):
+            return Quality.HDWEBRIP
+        elif checkName(["1080p", "webrip", "x264"], all):
+            return Quality.FULLHDWEBRIP 
         elif checkName(["720p", "web.dl", "h.?264"], all) or checkName(["720p", "itunes", "h.?264"], all):
             return Quality.HDWEBDL                                                                     
         elif checkName(["1080p", "web.dl", "h.?264"], all) or checkName(["1080p", "itunes", "h.?264"], all):     
             return Quality.FULLHDWEBDL                                                                 
-        elif checkName(["720p", "webrip", "x264"], all):
-            return Quality.HDWEBDL                                                                     
-        elif checkName(["1080p", "webrip", "x264"], all):
-            return Quality.FULLHDWEBDL        
         elif checkName(["720p", "bluray|hddvd", "x264"], all):
             return Quality.HDBLURAY                                                                    
         elif checkName(["1080p", "bluray|hddvd", "x264"], all):
@@ -229,8 +219,6 @@ class Quality:
     def assumeQuality(name):
         if name.lower().endswith((".avi", ".mp4")):
             return Quality.SDTV
-#        elif name.lower().endswith(".mkv"):
-#            return Quality.HDTV
         elif name.lower().endswith(".ts"):
             return Quality.RAWHDTV
         else:
@@ -271,11 +259,11 @@ Quality.DOWNLOADED = [Quality.compositeStatus(DOWNLOADED, x) for x in Quality.qu
 Quality.SNATCHED = [Quality.compositeStatus(SNATCHED, x) for x in Quality.qualityStrings.keys()]
 Quality.SNATCHED_PROPER = [Quality.compositeStatus(SNATCHED_PROPER, x) for x in Quality.qualityStrings.keys()]
 
-SD = Quality.combineQualities([Quality.SDTV, Quality.SDDVD], [])                                                                                                                                          
-HD = Quality.combineQualities([Quality.HDTV, Quality.FULLHDTV, Quality.HDWEBDL, Quality.FULLHDWEBDL, Quality.HDBLURAY, Quality.FULLHDBLURAY], []) # HD720p + HD1080p                                      
-HD720p = Quality.combineQualities([Quality.HDTV, Quality.HDWEBDL, Quality.HDBLURAY], [])                                                                                                                  
-HD1080p = Quality.combineQualities([Quality.FULLHDTV, Quality.FULLHDWEBDL, Quality.FULLHDBLURAY], [])                                                                                                     
-ANY = Quality.combineQualities([Quality.SDTV, Quality.SDDVD, Quality.HDTV, Quality.FULLHDTV, Quality.HDWEBDL, Quality.FULLHDWEBDL, Quality.HDBLURAY, Quality.FULLHDBLURAY, Quality.UNKNOWN], []) # SD + HD
+SD = Quality.combineQualities([Quality.SDTV, Quality.SDWEBRIP, Quality.SDWEBDL, Quality.SDDVD], [])
+HD = Quality.combineQualities([Quality.HDTV, Quality.FULLHDTV, Quality.HDWEBRIP, Quality.FULLHDWEBRIP ,Quality.HDWEBDL, Quality.FULLHDWEBDL, Quality.HDBLURAY, Quality.FULLHDBLURAY], [])
+HD720p = Quality.combineQualities([Quality.HDTV, Quality.HDWEBRIP, Quality.HDWEBDL, Quality.HDBLURAY], [])
+HD1080p = Quality.combineQualities([Quality.FULLHDTV, Quality.FULLHDWEBRIP, Quality.FULLHDWEBDL, Quality.FULLHDBLURAY], [])
+ANY = Quality.combineQualities([Quality.SDTV, Quality.SDWEBRIP, Quality.SDWEBDL, Quality.SDDVD, Quality.HDTV, Quality.FULLHDTV, Quality.HDWEBRIP, Quality.FULLHDWEBRIP, Quality.HDWEBDL, Quality.FULLHDWEBDL, Quality.HDBLURAY, Quality.FULLHDBLURAY, Quality.UNKNOWN], [])
                                                                                                                                                                                                           
 # legacy template, cant remove due to reference in mainDB upgrade?                                                                                                                                        
 BEST = Quality.combineQualities([Quality.SDTV, Quality.HDTV, Quality.HDWEBDL], [Quality.HDTV])
