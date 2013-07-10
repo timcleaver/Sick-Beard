@@ -87,17 +87,17 @@ multiEpStrings[NAMING_DUPLICATE] = "Duplicate"
 multiEpStrings[NAMING_EXTEND] = "Extend"
 multiEpStrings[NAMING_LIMITED_EXTEND] = "Extend (Limited)"
 
-class Quality:                                                        
-    NONE = 0              # 0                                         
-    SDTV = 1              # 1                                         
-    SDDVD = 1 << 1        # 2                                         
-    HDTV = 1 << 2         # 4                                         
-    RAWHDTV = 1 << 3      # 8  -- 720p/1080i mpeg2 (trollhd releases) 
-    FULLHDTV = 1 << 4     # 16 -- 1080p HDTV (QCF releases)           
-    HDWEBDL = 1 << 5      # 32                                        
-    FULLHDWEBDL = 1 << 6  # 64 -- 1080p web-dl                        
-    HDBLURAY = 1 << 7     # 128                                       
-    FULLHDBLURAY = 1 << 8 # 256                                       
+class Quality:
+    NONE = 0              # 0
+    SDTV = 1              # 1
+    SDDVD = 1 << 1        # 2
+    HDTV = 1 << 2         # 4
+    RAWHDTV = 1 << 3      # 8  -- 720p/1080i mpeg2 (trollhd releases)
+    FULLHDTV = 1 << 4     # 16 -- 1080p HDTV (QCF releases)
+    HDWEBDL = 1 << 5      # 32
+    FULLHDWEBDL = 1 << 6  # 64 -- 1080p web-dl
+    HDBLURAY = 1 << 7     # 128
+    FULLHDBLURAY = 1 << 8 # 256
 
     # put these bits at the other end of the spectrum, far enough out that they shouldn't interfere
     UNKNOWN = 1 << 15     # 32768
@@ -152,39 +152,39 @@ class Quality:
         Return The quality from an episode File renamed by Sickbeard
         If no quality is achieved it will try sceneQuality regex
         """
-        
+
         name = os.path.basename(name)
 
         # if we have our exact text then assume we put it there
         for x in sorted(Quality.qualityStrings.keys(), reverse=True):
             if x == Quality.UNKNOWN:
                 continue
-            if x == Quality.NONE: #Last chance  
+            if x == Quality.NONE: #Last chance
                 return Quality.sceneQuality(name)
-                
+
             regex = '\W' + Quality.qualityStrings[x].replace(' ','\W') + '\W'
             regex_match = re.search(regex, name, re.I)
             if regex_match:
                 return x
-        
+
 #        checkName = lambda list, func: func([re.search(x, name, re.I) for x in list])
 #
 #        if checkName(["(pdtv|hdtv|dsr|tvrip|web.dl|webrip).(xvid|x264|h.?264)"], all) and not checkName(["(720|1080)[pi]"], all):
 #            return Quality.SDTV
 #        elif checkName(["(dvdrip|bdrip)(.ws)?.(xvid|divx|x264)"], any) and not checkName(["(720|1080)[pi]"], all):
 #            return Quality.SDDVD
-#        elif checkName(["720p", "hdtv", "x264"], all) or checkName(["hr.ws.pdtv.x264"], any) and not checkName(["(1080)[pi]"], all):          
-#            return Quality.HDTV                                                                        
+#        elif checkName(["720p", "hdtv", "x264"], all) or checkName(["hr.ws.pdtv.x264"], any) and not checkName(["(1080)[pi]"], all):
+#            return Quality.HDTV
 #        elif checkName(["720p|1080i", "hdtv", "mpeg2"], all):
-#            return Quality.RAWHDTV                                                                     
-#        elif checkName(["1080p", "hdtv", "x264"], all):         
-#            return Quality.FULLHDTV                                                                    
+#            return Quality.RAWHDTV
+#        elif checkName(["1080p", "hdtv", "x264"], all):
+#            return Quality.FULLHDTV
 #        elif checkName(["720p", "web.dl|webrip", "h.?264"], all) or checkName(["720p", "itunes", "h.?264"], all):
-#            return Quality.HDWEBDL                                                                     
-#        elif checkName(["1080p", "web.dl|webrip", "h.?264"], all) or checkName(["1080p", "itunes", "h.?264"], all):     
-#            return Quality.FULLHDWEBDL                                                                 
+#            return Quality.HDWEBDL
+#        elif checkName(["1080p", "web.dl|webrip", "h.?264"], all) or checkName(["1080p", "itunes", "h.?264"], all):
+#            return Quality.FULLHDWEBDL
 #        elif checkName(["720p", "bluray|hddvd", "x264"], all):
-#            return Quality.HDBLURAY                                                                    
+#            return Quality.HDBLURAY
 #        elif checkName(["1080p", "bluray|hddvd", "x264"], all):
 #            return Quality.FULLHDBLURAY
 #        else:
@@ -193,7 +193,7 @@ class Quality:
     @staticmethod
     def sceneQuality(name):
         """
-        Return The quality from the scene episode File 
+        Return The quality from the scene episode File
         """
 
         name = os.path.basename(name)
@@ -204,22 +204,22 @@ class Quality:
             return Quality.SDTV
         elif checkName(["(dvdrip|b[r|d]rip)(.ws)?.(xvid|divx|x264)"], any) and not checkName(["(720|1080)[pi]"], all):
             return Quality.SDDVD
-        elif checkName(["720p", "hdtv", "x264"], all) or checkName(["hr.ws.pdtv.x264"], any) and not checkName(["(1080)[pi]"], all):          
-            return Quality.HDTV                                                                        
+        elif checkName(["720p", "hdtv", "x264"], all) or checkName(["hr.ws.pdtv.x264"], any) and not checkName(["(1080)[pi]"], all):
+            return Quality.HDTV
         elif checkName(["720p|1080i", "hdtv", "mpeg-?2"], all):
-            return Quality.RAWHDTV                                                                     
-        elif checkName(["1080p", "hdtv", "x264"], all):         
-            return Quality.FULLHDTV                                                                    
+            return Quality.RAWHDTV
+        elif checkName(["1080p", "hdtv", "x264"], all):
+            return Quality.FULLHDTV
         elif checkName(["720p", "web.dl", "h.?264"], all) or checkName(["720p", "itunes", "h.?264"], all):
-            return Quality.HDWEBDL                                                                     
-        elif checkName(["1080p", "web.dl", "h.?264"], all) or checkName(["1080p", "itunes", "h.?264"], all):     
-            return Quality.FULLHDWEBDL                                                                 
+            return Quality.HDWEBDL
+        elif checkName(["1080p", "web.dl", "h.?264"], all) or checkName(["1080p", "itunes", "h.?264"], all):
+            return Quality.FULLHDWEBDL
         elif checkName(["720p", "webrip", "x264"], all):
-            return Quality.HDWEBDL                                                                     
+            return Quality.HDWEBDL
         elif checkName(["1080p", "webrip", "x264"], all):
-            return Quality.FULLHDWEBDL        
+            return Quality.FULLHDWEBDL
         elif checkName(["720p", "bluray|hddvd|b[r|d]rip", "x264"], all):
-            return Quality.HDBLURAY                                                                    
+            return Quality.HDBLURAY
         elif checkName(["1080p", "bluray|hddvd|b[r|d]rip", "x264"], all):
             return Quality.FULLHDBLURAY
         else:
@@ -249,7 +249,7 @@ class Quality:
         """Returns a tuple containing (status, quality)"""
         if status == UNKNOWN:
             return (UNKNOWN, Quality.UNKNOWN)
-        
+
         for x in sorted(Quality.qualityStrings.keys(), reverse=True):
             if status > x * 100:
                 return (status - x * 100, x)
@@ -266,18 +266,22 @@ class Quality:
     DOWNLOADED = None
     SNATCHED = None
     SNATCHED_PROPER = None
+    WANTED = None
+    IGNORED = None
 
 Quality.DOWNLOADED = [Quality.compositeStatus(DOWNLOADED, x) for x in Quality.qualityStrings.keys()]
 Quality.SNATCHED = [Quality.compositeStatus(SNATCHED, x) for x in Quality.qualityStrings.keys()]
 Quality.SNATCHED_PROPER = [Quality.compositeStatus(SNATCHED_PROPER, x) for x in Quality.qualityStrings.keys()]
+Quality.WANTED = [Quality.compositeStatus(WANTED, x) for x in Quality.qualityStrings.keys()]
+Quality.IGNORED = [Quality.compositeStatus(IGNORED, x) for x in Quality.qualityStrings.keys()]
 
-SD = Quality.combineQualities([Quality.SDTV, Quality.SDDVD], [])                                                                                                                                          
-HD = Quality.combineQualities([Quality.HDTV, Quality.FULLHDTV, Quality.HDWEBDL, Quality.FULLHDWEBDL, Quality.HDBLURAY, Quality.FULLHDBLURAY], []) # HD720p + HD1080p                                      
-HD720p = Quality.combineQualities([Quality.HDTV, Quality.HDWEBDL, Quality.HDBLURAY], [])                                                                                                                  
-HD1080p = Quality.combineQualities([Quality.FULLHDTV, Quality.FULLHDWEBDL, Quality.FULLHDBLURAY], [])                                                                                                     
+SD = Quality.combineQualities([Quality.SDTV, Quality.SDDVD], [])
+HD = Quality.combineQualities([Quality.HDTV, Quality.FULLHDTV, Quality.HDWEBDL, Quality.FULLHDWEBDL, Quality.HDBLURAY, Quality.FULLHDBLURAY], []) # HD720p + HD1080p
+HD720p = Quality.combineQualities([Quality.HDTV, Quality.HDWEBDL, Quality.HDBLURAY], [])
+HD1080p = Quality.combineQualities([Quality.FULLHDTV, Quality.FULLHDWEBDL, Quality.FULLHDBLURAY], [])
 ANY = Quality.combineQualities([Quality.SDTV, Quality.SDDVD, Quality.HDTV, Quality.FULLHDTV, Quality.HDWEBDL, Quality.FULLHDWEBDL, Quality.HDBLURAY, Quality.FULLHDBLURAY, Quality.UNKNOWN], []) # SD + HD
-                                                                                                                                                                                                          
-# legacy template, cant remove due to reference in mainDB upgrade?                                                                                                                                        
+
+# legacy template, cant remove due to reference in mainDB upgrade?
 BEST = Quality.combineQualities([Quality.SDTV, Quality.HDTV, Quality.HDWEBDL], [Quality.HDTV])
 
 qualityPresets = (SD, HD, HD720p, HD1080p, ANY)
@@ -321,10 +325,10 @@ class Overview:
     WANTED = WANTED # 3
     GOOD = 4
     SKIPPED = SKIPPED # 5
-    
+
     # For both snatched statuses. Note: SNATCHED/QUAL have same value and break dict.
     SNATCHED = SNATCHED_PROPER # 9
-    
+
     overviewStrings = {SKIPPED: "skipped",
                        WANTED: "wanted",
                        QUAL: "qual",
