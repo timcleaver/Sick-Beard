@@ -19,7 +19,8 @@
 #set $snatched = ",".join([str(x) for x in $Quality.SNATCHED + $Quality.SNATCHED_PROPER])
 #set $wanted = ",".join([str(x) for x in $Quality.WANTED])
 #set $ignored = ",".join([str(x) for x in $Quality.IGNORED])
-#set $episodes = $myDB.select("SELECT showid, SUM(CASE WHEN status IN ("+$downloads+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$snatched+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$wanted+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$ignored+") THEN 1 ELSE 0 END), SUM(CASE WHEN status = "+str($SKIPPED)+" THEN 1 ELSE 0 END), COUNT(*) FROM tv_episodes WHERE airdate <= "+$today+" GROUP BY showid")
+#set $failed = ",".join([str(x) for x in $Quality.FAILED])
+#set $episodes = $myDB.select("SELECT showid, SUM(CASE WHEN status IN ("+$downloads+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$snatched+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$wanted+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$ignored+") AND season != 0 THEN 1 ELSE 0 END), SUM(CASE WHEN status = "+str($SKIPPED)+" AND season != 0 THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$ignored+","+str($SKIPPED)+") AND season = 0 THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$failed+") AND season != 0 THEN 1 ELSE 0 END), COUNT(*) FROM tv_episodes WHERE airdate <= "+$today+" GROUP BY showid")
 
 #set $layout = $sickbeard.HOME_LAYOUT
 
@@ -33,6 +34,7 @@
     },
     format: function(s) {
         if (s.indexOf('Loading...') == 0)
+        	return s.replace('Loading...','000');
         #if not $sickbeard.SORT_ARTICLE:
             return (s || '').replace(/^(The|A|An)\s/i,'');
         #else:
@@ -118,10 +120,12 @@
 
 <div id="Legend">
     <span><b>Legend:</b>
-    <span class='good' style="font-size: 12px">Downloaded</span>
+    <span class='good' style="font-size: 12px">Downloaded</span> &middot;
     <span class='snatched' style="font-size: 12px">Snatched</span> &middot;
     <span class='wanted' style="font-size: 12px">Wanted</span> &middot;
-    <span class='skipped' style="font-size: 12px">Ignored/Skipped</span> &middot;
+    <span class='skippedignored' style="font-size: 12px"><span class='ignored'>Ignored</span>/<span class='skipped'>Skipped</span></span> &middot;
+    <span class='special' style="font-size: 12px">Special</span> &middot;
+    <span class='failed' style="font-size: 12px">Failed</span>
     </span>
 </div>
 <div id="HomeLayout" style="float: right; margin-top: -25px;">
@@ -171,14 +175,23 @@
 $myShowList.sort(lambda x, y: cmp(x.name, y.name))
 #for $curShow in $myShowList:
   #set $curEp = $curShow.nextEpisode()
-  #set $details = [$episode for $episode in $episodes if int($episode[0]) == $curShow.tvdbid][0]
+  #set $details = [$episode for $episode in $episodes if int($episode[0]) == $curShow.tvdbid]
+  <!-- handle situations where all the episodes are in the future. i.e.it doesn't
+  appear in the episodes query results. -->
+  #if not $details:
+    #set $details = [ $curShow.tvdbid, 0, 0, 0, 0, 0, 0, 0, 0 ]
+  #else:
+    #set $details = $details[0]
+  #end if
   #set $tvdbid = $details[0]
   #set $downloaded = $details[1]
   #set $snatched = $details[2]
   #set $wants = $details[3]
   #set $ignored = $details[4]
   #set $skipped = $details[5]
-  #set $total = $details[6]
+  #set $specials = $details[6]
+  #set $failed = $details[7]
+  #set $total = $details[8]
 
   #set $which_thumb = $layout+"_thumb"
 
@@ -235,19 +248,26 @@ $myShowList.sort(lambda x, y: cmp(x.name, y.name))
                                             ['Snatched', $snatched],
                                             ['Ignored', $ignored],
                                             ['Downloaded', $downloaded],
-                                            ['Skipped', $skipped]
+                                            ['Failed', $failed],
+                                            ['Skipped', $skipped],
+                                            ['Specials', $specials]
                                         ]], {
                                             seriesDefaults:{
                                                 renderer: \$.jqplot.PieRenderer,
                                                 rendererOptions: {
                                                     showDataLabels: true,
                                                     dataLabels: 'value',
-                                                    shadowDepth: 2,
-                                                    shadowAlpha: 0.2,
+                                                    shadow: false,
+                                                    shadowDepth: 0,
+                                                    shadowAlpha: 0,
                                                     padding: 2,
+                                                    fill: false,
+                                                    highlightMouseOver: false,
+                                                    highlightMouseDown: false,
                                                 }
                                             },
-                                            seriesColors: [ "#F49AC1", "#EFEFEF", "#90D5EC", "#AAD450", "#90D5EC" ],
+                                            seriesColors: [ "#F49AC1", "#8C8C8C", "#00A0FF", "#AAD450", "#FF0000", "#90D5EC", "#FC7A00" ],
+                                            //highlightColors: [ "#F49AC1", "#EFEFEF", "#90D5EC", "#AAD450", "#FF0000", "#90D5EC", "#FC7A00" ],
                                             legend: {
                                                 show: false,
                                             },
@@ -255,14 +275,29 @@ $myShowList.sort(lambda x, y: cmp(x.name, y.name))
                                                 drawGridlines: false,
                                                 drawBorder: false,
                                                 shadow: false,
-                                                background: "rgba(255,255,255,0)"
+                                                drawBackground: false,
+                                                background: "rgba(255,255,255,0)",
                                             }
                                         });
             });
         //-->
         </script>
 #else:
-    <span class='good'>$downloaded</span><span class="snatched">$snatched</span><span class="wanted">$wants</span><span class="skipped">$ignored/$skipped</span>
+    <div class='simple-summary'>
+        <span class='good'>$downloaded</span>
+        <span class='snatched'>$snatched</span>
+        <span class='wanted'>$wants</span>
+        <span class='skippedignored'>
+            <math>
+                <mfrac>
+                    <mi class='ignored'>$ignored</mi>
+                    <mi class='skipped'>$skipped</mi>
+                </mfrac>
+            </math>
+        </span>
+        <span class='special'>$specials</span>
+        <span class='failed'>$failed</span>
+    </div>
 #end if
     </td>
     <td align="center"><img src="$sbRoot/images/#if int($curShow.paused) == 0 and $curShow.status != "Ended" then "yes16.png\" alt=\"Y\"" else "no16.png\" alt=\"N\""# width="16" height="16" /></td>

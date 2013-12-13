@@ -24,6 +24,7 @@
 <script type="text/javascript" src="$sbRoot/js/plotTooltip.js?$sbPID"></script>
 <script type="text/javascript" src="$sbRoot/js/ajaxEpSearch.js?$sbPID"></script>
 <script type="text/javascript" src="$sbRoot/js/ajaxEpSubtitles.js?$sbPID"></script>
+<script type="text/javascript" src="$sbRoot/js/ajaxEpRetry.js?$sbPID"></script>
 
 <div class="navShows">
 </br>
@@ -54,8 +55,8 @@
 #else
 	<img src="$sbRoot/images/flags/${$show.imdb_info['country_codes']}.png" width="16" height="11" style="margin-top: 3px; margin-left: 3px" /> ($show.imdb_info['year']) - $show.imdb_info['runtimes'] min - $show.imdb_info['genres'].replace('|',' | ')
 	<span class="tvshowLink" style="vertical-align: text-top">
-		<a href="http://www.imdb.com/title/$show.imdbid" onclick="window.open(this.href, '_blank'); return false;" title="http://www.imdb.com/title/$show.imdbid"><img alt="[imdb]" height="16" width="16" src="$sbRoot/images/imdb.png" style="margin-top: -1px;"/>
-		<a href="http://www.thetvdb.com/?tab=series&amp;id=$show.tvdbid" onclick="window.open(this.href, '_blank'); return false;" title="http://www.thetvdb.com/?tab=series&amp;id=$show.tvdbid"><img alt="[tvdb]" height="16" width="16" src="$sbRoot/images/thetvdb16.png" style="margin-top: -1px;"/></a>
+		<a href="http://www.imdb.com/title/$show.imdbid" rel="noreferrer" onclick="window.open('${sickbeard.ANON_REDIRECT}' + this.href, '_blank'); return false;" title="http://www.imdb.com/title/$show.imdbid"><img alt="[imdb]" height="16" width="16" src="$sbRoot/images/imdb.png" style="margin-top: -1px;"/>
+		<a href="http://www.thetvdb.com/?tab=series&amp;id=$show.tvdbid" rel="noreferrer" onclick="window.open('${sickbeard.ANON_REDIRECT}' + this.href, '_blank'); return false;" title="http://www.thetvdb.com/?tab=series&amp;id=$show.tvdbid"><img alt="[tvdb]" height="16" width="16" src="$sbRoot/images/thetvdb16.png" style="margin-top: -1px;"/></a>
 	</span>
 
 #end if
@@ -166,7 +167,7 @@
 <div class="float-left">
 	Change selected episodes to 
 	<select id="statusSelect">
-		#for $curStatus in [$WANTED, $SKIPPED, $ARCHIVED, $IGNORED] + sorted($Quality.DOWNLOADED):
+		#for $curStatus in [$WANTED, $SKIPPED, $ARCHIVED, $IGNORED, $FAILED] + sorted($Quality.DOWNLOADED):
 		#if $curStatus == $DOWNLOADED:
 		#continue
 		#end if
@@ -177,26 +178,36 @@
 	<input class="btn" type="button" id="changeStatus" value="Go" />
 </div>
 
-	<div class="float-right clearfix" id="checkboxControls" style="margin-top: 3px;">
-		<div style="padding-bottom: 3px;">
-			<label for="wanted"><span class="wanted">Wanted: <b>$epCounts[$Overview.WANTED]</b> <input type="checkbox" id="wanted" checked="checked" /></span></label>
-			<label for="qual"><span class="qual">Low Quality: <b>$epCounts[$Overview.QUAL]</b> <input type="checkbox" id="qual" checked="checked" /></span></label>
-			<label for="good"><span class="good">Downloaded: <b>$epCounts[$Overview.GOOD]</b> <input type="checkbox" id="good" checked="checked" /></span></label>
-			<label for="skipped"><span class="skipped">Skipped: <b>$epCounts[$Overview.SKIPPED]</b> <input type="checkbox" id="skipped" checked="checked" /></span></label>
-		</div>
-	    <div class="pull-right">
-	        <button class="btn btn-mini seriesCheck" style="line-height: 8px;"><a>Select Filtered Episodes</a></button> 
-	        <button class="btn btn-mini clearAll" style="line-height: 8px;"><a>Clear All</a></button>
-		</div>
-    </div>
+<div class="float-left" id="checkboxControls" style="margin-top: 3px;">
+	<div style="padding-bottom: 3px;">
+		Filter Episodes:
+		<label for="wanted"><span class="wanted">Wanted: <b>$epCounts[$Overview.WANTED]</b> <input type="checkbox" id="wanted" checked="checked" /></span></label>
+		<label for="qual"><span class="qual">Low Quality: <b>$epCounts[$Overview.QUAL]</b> <input type="checkbox" id="qual" checked="checked" /></span></label>
+		<label for="good"><span class="good">Downloaded: <b>$epCounts[$Overview.GOOD]</b> <input type="checkbox" id="good" checked="checked" /></span></label>
+		<label for="skipped"><span class="skippedignored"><span class='skipped'>Skipped: <b>$epCounts[$Overview.SKIPPED]</b> <input type="checkbox" id="skipped" checked="checked" /></span></span></label>
+		<label for="failed"><span class="failed">Failed: <b>$epCounts[$Overview.FAILED]</b> <input type="checkbox" id="failed" checked="checked" /></span></label>
+		<label for="snatched"><span class="snatched">Snatched: <b>$epCounts[$Overview.SNATCHED]</b> <input type="checkbox" id="snatched" checked="checked" /></span></label>
+		<button class="btn btn-mini seriesCheck" style="line-height: 8px;"><a>Select</a></button> 
+		<button class="btn btn-mini clearAll" style="line-height: 8px;"><a>Clear All</a></button>
+	</div>
+</div>
 <br />	
 
 <table class="sickbeardTable" cellspacing="1" border="0" cellpadding="0">
     
 #for $epResult in $sqlResults:
+  #set $epStr = str($epResult["season"]) + "x" + str($epResult["episode"])
   #if not $sickbeard.DISPLAY_SHOW_SPECIALS and int($epResult["season"]) == 0:
   	#continue
-  #end if	
+  #else if int($epResult["season"]) == 0 and $Overview.overviewStrings[$epCats[$epStr]] == "skipped":
+    #set $klass = "special"
+  #else if $Overview.overviewStrings[$epCats[$epStr]] == "skipped":
+    #set $klass = "skippedignored"
+  #else if $Overview.overviewStrings[$epCats[$epStr]] == "ignored":
+    #set $klass = "skippedignored"
+  #else
+    #set $klass = $Overview.overviewStrings[$epCats[$epStr]]
+  #end if
 
   #if int($epResult["season"]) != $curSeason:
   <tr><td colspan="9"  style="height: 0px; padding:0; margin:0;"><a name="season-$epResult["season"]"></a></td></tr>
@@ -209,9 +220,8 @@
         #set $curSeason = int($epResult["season"])
   #end if    
 
-  #set $epStr = str($epResult["season"]) + "x" + str($epResult["episode"])
   #set $epLoc = $epResult["location"]
-  <tr class="$Overview.overviewStrings[$epCats[$epStr]] season-$curSeason">
+  <tr class="$klass season-$curSeason">
     <td width="1%">
 #if int($epResult["status"]) != $UNAIRED
       <input type="checkbox" class="epCheck" id="<%=str(epResult["season"])+'x'+str(epResult["episode"])%>" name="<%=str(epResult["season"]) +"x"+str(epResult["episode"]) %>" />
@@ -222,7 +232,7 @@
     <td align="center">$epResult["episode"]</td>
     <td class="title">
     #if $epResult["description"] != "" and $epResult["description"] != None:
-    <img style="padding-top: 3px;" src="$sbRoot/images/info32.png" height="16" class="plotInfo" alt="" id="plot_info_$show.tvdbid<%="_"+str(epResult["season"])+"_"+str(epResult["episode"])%>" />
+    <img style="padding-top: 3px;" src="$sbRoot/images/info32.png" width="16" height="16" class="plotInfo" alt="" id="plot_info_$show.tvdbid<%="_"+str(epResult["season"])+"_"+str(epResult["episode"])%>" />
 	#end if    
     $epResult["name"]
 </td>
@@ -255,7 +265,11 @@ $epLoc
 #end if
     <td class="search">
     #if int($epResult["season"]) != 0:
-      <a class="epSearch" href="searchEpisode?show=$show.tvdbid&amp;season=$epResult["season"]&amp;episode=$epResult["episode"]"><img src="$sbRoot/images/search32.png" height="16" alt="search" title="Manual Search" /></a>
+		#if ( int($epResult["status"]) in $Quality.SNATCHED or int($epResult["status"]) in $Quality.DOWNLOADED ) and $sickbeard.USE_FAILED_DOWNLOADS:
+			<a class="epRetry" href="retryEpisode?show=$show.tvdbid&amp;season=$epResult["season"]&amp;episode=$epResult["episode"]"><img src="$sbRoot/images/search32.png" height="16" alt="retry" title="Retry Download" /></a>
+		#else:
+	    	<a class="epSearch" href="searchEpisode?show=$show.tvdbid&amp;season=$epResult["season"]&amp;episode=$epResult["episode"]"><img src="$sbRoot/images/search32.png" width="16" height="16" alt="search" title="Manual Search" /></a>
+		#end if
     #end if
     #if $sickbeard.USE_SUBTITLES and $show.subtitles and len(set(str($epResult["subtitles"]).split(',')).intersection(set($subtitles.wantedLanguages()))) < len($subtitles.wantedLanguages()) and $epResult["location"]
       <a class="epSubtitlesSearch" href="searchEpisodeSubtitles?show=$show.tvdbid&amp;season=$epResult["season"]&amp;episode=$epResult["episode"]"><img src="$sbRoot/images/closed_captioning.png" height="16" alt="search subtitles" title="Search Subtitles" /></a>
