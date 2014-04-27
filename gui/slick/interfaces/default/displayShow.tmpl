@@ -185,26 +185,36 @@
 	<input class="btn" type="button" id="changeStatus" value="Go" />
 </div>
 
-	<div class="float-right clearfix" id="checkboxControls" style="margin-top: 3px;">
-		<div style="padding-bottom: 3px;">
-			<label for="wanted"><span class="wanted">Wanted: <b>$epCounts[$Overview.WANTED]</b> <input type="checkbox" id="wanted" checked="checked" /></span></label>
-			<label for="qual"><span class="qual">Low Quality: <b>$epCounts[$Overview.QUAL]</b> <input type="checkbox" id="qual" checked="checked" /></span></label>
-			<label for="good"><span class="good">Downloaded: <b>$epCounts[$Overview.GOOD]</b> <input type="checkbox" id="good" checked="checked" /></span></label>
-			<label for="skipped"><span class="skipped">Skipped: <b>$epCounts[$Overview.SKIPPED]</b> <input type="checkbox" id="skipped" checked="checked" /></span></label>
-		</div>
-	    <div class="pull-right">
-	        <button class="btn btn-mini seriesCheck" style="line-height: 8px;"><a>Select Filtered Episodes</a></button> 
-	        <button class="btn btn-mini clearAll" style="line-height: 8px;"><a>Clear All</a></button>
-		</div>
-    </div>
+<div class="float-left" id="checkboxControls" style="margin-top: 3px;">
+	<div style="padding-bottom: 3px;">
+		Filter Episodes:
+		<label for="wanted"><span class="wanted">Wanted: <b>$epCounts[$Overview.WANTED]</b> <input type="checkbox" id="wanted" checked="checked" /></span></label>
+		<label for="qual"><span class="qual">Low Quality: <b>$epCounts[$Overview.QUAL]</b> <input type="checkbox" id="qual" checked="checked" /></span></label>
+		<label for="good"><span class="good">Downloaded: <b>$epCounts[$Overview.GOOD]</b> <input type="checkbox" id="good" checked="checked" /></span></label>
+		<label for="skipped"><span class="skippedignored"><span class='skipped'>Skipped: <b>$epCounts[$Overview.SKIPPED]</b> <input type="checkbox" id="skipped" checked="checked" /></span></span></label>
+		<label for="failed"><span class="failed">Failed: <b>$epCounts[$Overview.FAILED]</b> <input type="checkbox" id="failed" checked="checked" /></span></label>
+		<label for="snatched"><span class="snatched">Snatched: <b>$epCounts[$Overview.SNATCHED]</b> <input type="checkbox" id="snatched" checked="checked" /></span></label>
+		<button class="btn btn-mini seriesCheck" style="line-height: 8px;"><a>Select</a></button> 
+		<button class="btn btn-mini clearAll" style="line-height: 8px;"><a>Clear All</a></button>
+	</div>
+</div>
 <br />	
 
 <table class="sickbeardTable" cellspacing="1" border="0" cellpadding="0">
     
 #for $epResult in $sqlResults:
+  #set $epStr = str($epResult["season"]) + "x" + str($epResult["episode"])
   #if not $sickbeard.DISPLAY_SHOW_SPECIALS and int($epResult["season"]) == 0:
   	#continue
-  #end if	
+  #else if int($epResult["season"]) == 0 and $Overview.overviewStrings[$epCats[$epStr]] == "skipped":
+    #set $klass = "special"
+  #else if $Overview.overviewStrings[$epCats[$epStr]] == "skipped":
+    #set $klass = "skippedignored"
+  #else if $Overview.overviewStrings[$epCats[$epStr]] == "ignored":
+    #set $klass = "skippedignored"
+  #else
+    #set $klass = $Overview.overviewStrings[$epCats[$epStr]]
+  #end if
 
   #if int($epResult["season"]) != $curSeason:
   <tr><td colspan="9"  style="height: 0px; padding:0; margin:0;"><a name="season-$epResult["season"]"></a></td></tr>
@@ -217,9 +227,8 @@
         #set $curSeason = int($epResult["season"])
   #end if    
 
-  #set $epStr = str($epResult["season"]) + "x" + str($epResult["episode"])
   #set $epLoc = $epResult["location"]
-  <tr class="$Overview.overviewStrings[$epCats[$epStr]] season-$curSeason">
+  <tr class="$klass season-$curSeason">
     <td width="1%">
 #if int($epResult["status"]) != $UNAIRED
       <input type="checkbox" class="epCheck" id="<%=str(epResult["season"])+'x'+str(epResult["episode"])%>" name="<%=str(epResult["season"]) +"x"+str(epResult["episode"]) %>" />

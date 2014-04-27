@@ -3,6 +3,7 @@
 #from sickbeard.common import *
 #from sickbeard import db, sbdatetime, network_timezones
 
+
 #set global $title="Home"
 #set global $header="Show List"
 
@@ -14,13 +15,15 @@
 
 #set $myDB = $db.DBConnection()
 #set $today = str($datetime.date.today().toordinal())
-#set $downloadedEps = $myDB.select("SELECT showid, COUNT(*) FROM tv_episodes WHERE (status IN ("+",".join([str(x) for x in $Quality.DOWNLOADED + [$ARCHIVED]])+") OR (status IN ("+",".join([str(x) for x in $Quality.SNATCHED + $Quality.SNATCHED_PROPER])+") AND location != '')) AND season != 0 and episode != 0 AND airdate <= "+$today+" GROUP BY showid")
-#set $allEps = $myDB.select("SELECT showid, COUNT(*) FROM tv_episodes WHERE season != 0 and episode != 0 AND (airdate != 1 OR status IN ("+",".join([str(x) for x in ($Quality.DOWNLOADED + $Quality.SNATCHED + $Quality.SNATCHED_PROPER) + [$ARCHIVED]])+")) AND airdate <= "+$today+" AND status != "+str($IGNORED)+" GROUP BY showid")
-#set $layout = $sickbeard.HOME_LAYOUT
 
-<style type="text/css">
-.sort_data {display:none}
-</style>
+#set $downloads = ",".join([str(x) for x in $Quality.DOWNLOADED + [$ARCHIVED]])
+#set $snatched = ",".join([str(x) for x in $Quality.SNATCHED + $Quality.SNATCHED_PROPER])
+#set $wanted = ",".join([str(x) for x in $Quality.WANTED])
+#set $ignored = ",".join([str(x) for x in $Quality.IGNORED])
+#set $failed = ",".join([str(x) for x in $Quality.FAILED])
+#set $episodes = $myDB.select("SELECT showid, SUM(CASE WHEN status IN ("+$downloads+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$snatched+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$wanted+") THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$ignored+") AND season != 0 THEN 1 ELSE 0 END), SUM(CASE WHEN status = "+str($SKIPPED)+" AND season != 0 THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$ignored+","+str($SKIPPED)+") AND season = 0 THEN 1 ELSE 0 END), SUM(CASE WHEN status IN ("+$failed+") AND season != 0 THEN 1 ELSE 0 END), COUNT(*) FROM tv_episodes WHERE airdate <= "+$today+" GROUP BY showid")
+
+#set $layout = $sickbeard.HOME_LAYOUT
 
 <script type="text/javascript" charset="utf-8">
 <!--
@@ -33,12 +36,12 @@
     format: function(s) {
         if (s.indexOf('Loading...') == 0)
         	return s.replace('Loading...','000');
-		else
-		#if not $sickbeard.SORT_ARTICLE:
-			return (s || '').replace(/^(The|A|An)\s/i,'');
-		#else:
-			return (s || '');
-		#end if	
+        else
+            #if not $sickbeard.SORT_ARTICLE:
+                return (s || '').replace(/^(The|A|An)\s/i,'');
+            #else:
+                return (s || '');
+            #end if
     },
     type: 'text'
 });
@@ -54,22 +57,21 @@
     type: 'numeric'
 });
 
-
 \$.tablesorter.addParser({
     id: 'quality',
     is: function(s) {
         return false;
     },
-    format: function(s) { 
+    format: function(s) {
         return s.replace('HD1080p',5).replace('HD720p',4).replace('HD',3).replace('SD',2).replace('Any',1).replace('Best',0).replace('Custom',7);
     },
     type: 'numeric'
 });
 
-\$.tablesorter.addParser({ 
+\$.tablesorter.addParser({
     id: 'eps',
     is: function(s) {
-        return false; 
+        return false;
     },
     format: function(s) {
         match = s.match(/^(.*)/);
@@ -78,9 +80,9 @@
             return -10;
 
         var nums = match[1].split(" / ");
-        
+
         if (parseInt(nums[0]) === 0)
-        	return parseInt(nums[1]);
+            return parseInt(nums[1]);
 
         var finalNum = parseInt((nums[0]/nums[1])*1000)*100;
         if (finalNum > 0)
@@ -91,32 +93,32 @@
     type: 'numeric'
 });
 
-\$(document).ready(function(){ 
+\$(document).ready(function(){
 
     \$("img#network").on('error', function(){
-    	\$(this).parent().text(\$(this).attr('alt'));
-    	\$(this).remove();
+        \$(this).parent().text(\$(this).attr('alt'));
+        \$(this).remove();
     });
 
     \$("#showListTable:has(tbody tr)").tablesorter({
-	
-	        sortList: [[6,1],[2,0]],
-	        textExtraction: {
-				0: function(node) { return \$(node).find("span").text().toLowerCase(); },			
-	        #if ( $layout != 'simple'):
-		        3: function(node) { return \$(node).find("img").attr("alt"); },
-	        #end if
-	            4: function(node) { return \$(node).find("span").text(); },
-	            6: function(node) { return \$(node).find("img").attr("alt"); }
-	        },
-	        widgets: ['saveSort', 'zebra'],
-	        headers: {
-				0: { sorter: 'cDate' },
-	            2: { sorter: 'loadingNames' },
-	            3: { sorter: 'network' },
-	            4: { sorter: 'quality' },
-	            5: { sorter: 'eps' },
-	        }
+
+            sortList: [[6,1],[2,0]],
+            textExtraction: {
+                0: function(node) { return \$(node).find("span").text().toLowerCase(); },			
+            #if ( $layout != 'simple'):
+                3: function(node) { return \$(node).find("img").attr("alt"); },
+            #end if
+                4: function(node) { return \$(node).find("span").text(); },
+                6: function(node) { return \$(node).find("img").attr("alt"); }
+            },
+            widgets: ['saveSort', 'zebra'],
+            headers: {
+                0: { sorter: 'cDate' },
+                2: { sorter: 'loadingNames' },
+                3: { sorter: 'network' },
+                4: { sorter: 'quality' },
+                5: { sorter: 'eps' },
+            }
     });
 
 });
@@ -124,23 +126,33 @@
 //-->
 </script>
 
-#if $varExists('header') 
-	<h1 class="header">$header</h1>
-#else 
-	<h1 class="title">$title</h1>
+#if $varExists('header')
+    <h1 class="header">$header</h1>
+#else
+    <h1 class="title">$title</h1>
 #end if
 
+<div id="Legend">
+    <span><b>Legend:</b>
+    <span class='good' style="font-size: 12px">Downloaded</span> &middot;
+    <span class='snatched' style="font-size: 12px">Snatched</span> &middot;
+    <span class='wanted' style="font-size: 12px">Wanted</span> &middot;
+    <span class='skippedignored' style="font-size: 12px"><span class='ignored'>Ignored</span>/<span class='skipped'>Skipped</span></span> &middot;
+    <span class='special' style="font-size: 12px">Special</span> &middot;
+    <span class='failed' style="font-size: 12px">Failed</span>
+    </span>
+</div>
 <div id="HomeLayout" style="float: right; margin-top: -25px;">
-	<span><b>Layout:</b>
-		<a class="inner" href="$sbRoot/setHomeLayout/?layout=poster" style="font-size: 12px;">Poster</a> &middot;
-		<a class="inner" href="$sbRoot/setHomeLayout/?layout=banner" style="font-size: 12px;">Banner</a> &middot;
-		<a class="inner" href="$sbRoot/setHomeLayout/?layout=simple" style="font-size: 12px;">Simple</a>
-	</span>
+    <span><b>Layout:</b>
+        <a class="inner" href="$sbRoot/setHomeLayout/?layout=poster" style="font-size: 12px;">Poster</a> &middot;
+        <a class="inner" href="$sbRoot/setHomeLayout/?layout=banner" style="font-size: 12px;">Banner</a> &middot;
+        <a class="inner" href="$sbRoot/setHomeLayout/?layout=simple" style="font-size: 12px;">Simple</a>
+    </span>
 </div>
 
 <table id="showListTable" class="sickbeardTable tablesorter" cellspacing="1" border="0" cellpadding="0">
 
-  <thead><tr><th class="nowrap">Next Ep</th>#if $layout=="poster" then "<th>Poster</th>" else "<th style='display: none;'></th>"#<th>Show</th><th>Network</th><th>Quality</th><th>Downloads</th><th>Active</th><th>Status</th></tr></thead>
+  <thead><tr><th class="nowrap">Next Ep</th>#if $layout=="poster" then "<th>Poster</th>" else "<th style='display: none;'></th>"#<th>Show</th><th>Network</th><th>Quality</th><th>Episodes</th><th>Active</th><th>Status</th></tr></thead>
   <tfoot>
     <tr>
       <th rowspan="1" colspan="1" align="center"><a href="$sbRoot/home/addShows/">&nbsp Add Show</a></th>
@@ -176,27 +188,26 @@
 #set $myShowList = $list($sickbeard.showList)
 $myShowList.sort(lambda x, y: cmp(x.name, y.name))
 #for $curShow in $myShowList:
-#set $curEp = $curShow.nextEpisode()
-
-#set $curShowDownloads = [x[1] for x in $downloadedEps if int(x[0]) == $curShow.tvdbid]
-#set $curShowAll = [x[1] for x in $allEps if int(x[0]) == $curShow.tvdbid]
-#if len($curShowAll) != 0:
-  #if len($curShowDownloads) != 0:
-    #set $dlStat = str($curShowDownloads[0])+" / "+str($curShowAll[0])
-    #set $nom = $curShowDownloads[0]
-    #set $den = $curShowAll[0]
-  #else
-    #set $dlStat = "0 / "+str($curShowAll[0])
-    #set $nom = 0
-    #set $den = $curShowAll[0]
+  #set $curEp = $curShow.nextEpisode()
+  #set $details = [$episode for $episode in $episodes if int($episode[0]) == $curShow.tvdbid]
+  <!-- handle situations where all the episodes are in the future. i.e.it doesn't
+  appear in the episodes query results. -->
+  #if not $details:
+    #set $details = [ $curShow.tvdbid, 0, 0, 0, 0, 0, 0, 0, 0 ]
+  #else:
+    #set $details = $details[0]
   #end if
-#else
-  #set $dlStat = "0"
-  #set $nom = 0
-  #set $den = 1
-#end if
+  #set $tvdbid = $details[0]
+  #set $downloaded = $details[1]
+  #set $snatched = $details[2]
+  #set $wants = $details[3]
+  #set $ignored = $details[4]
+  #set $skipped = $details[5]
+  #set $specials = $details[6]
+  #set $failed = $details[7]
+  #set $total = $details[8]
 
-#set $which_thumb = $layout+"_thumb" 
+  #set $which_thumb = $layout+"_thumb"
 
   <tr>
     #if len($curEp) != 0:
@@ -206,57 +217,107 @@ $myShowList.sort(lambda x, y: cmp(x.name, y.name))
     	<td align="center" class="nowrap" style="color: #555555;font-weight:bold;"></td>
     #end if
     #if $layout == 'poster':
-	    <td>
-	    	<div class="imgHomeWrapper $layout">
-		    	<a href="$sbRoot/showPoster/?show=$curShow.tvdbid&amp;which=$layout" rel="dialog" title="$curShow.name">
-		    		<img src="$sbRoot/showPoster/?show=$curShow.tvdbid&amp;which=$which_thumb" class="$layout" alt="$curShow.tvdbid"/>
-		    	</a>
-	    	</div>
-	    </td>
-    	<td class="tvShow"><a href="$sbRoot/home/displayShow?show=$curShow.tvdbid">$curShow.name</a></td>
-	#else if $layout == 'banner':
-    	<td style="display: none;"/>
-	    <td>
-	    	<span style="display: none;">$curShow.name</span>
-	    	<div class="imgHomeWrapper imgHomeWrapperRounded $layout">
-	    		<a href="$sbRoot/home/displayShow?show=$curShow.tvdbid">
-	    		<img src="$sbRoot/showPoster/?show=$curShow.tvdbid&amp;which=$which_thumb" class="$layout" alt="$curShow.tvdbid" title="$curShow.name"/>
-	    	</div>
-	    </td>
-	#else if $layout == 'simple':
-	    <td style="display: none;"/>
-	    <td class="tvShow"><a href="$sbRoot/home/displayShow?show=$curShow.tvdbid">$curShow.name</a></td>
+        <td>
+            <div class="imgHomeWrapper $layout">
+                <a href="$sbRoot/showPoster/?show=$curShow.tvdbid&amp;which=$layout" rel="dialog" title="$curShow.name">
+                    <img src="$sbRoot/showPoster/?show=$curShow.tvdbid&amp;which=$which_thumb" class="$layout" alt="$curShow.tvdbid"/>
+                </a>
+            </div>
+        </td>
+        <td class="tvShow"><a href="$sbRoot/home/displayShow?show=$curShow.tvdbid">$curShow.name</a></td>
+    #else if $layout == 'banner':
+        <td style="display: none;"/>
+        <td>
+            <span style="display: none;">$curShow.name</span>
+            <div class="imgHomeWrapper imgHomeWrapperRounded $layout">
+                <a href="$sbRoot/home/displayShow?show=$curShow.tvdbid">
+                <img src="$sbRoot/showPoster/?show=$curShow.tvdbid&amp;which=$which_thumb" class="$layout" alt="$curShow.tvdbid" title="$curShow.name"/>
+            </div>
+        </td>
+    #else if $layout == 'simple':
+        <td style="display: none;"/>
+        <td class="tvShow"><a href="$sbRoot/home/displayShow?show=$curShow.tvdbid">$curShow.name</a></td>
     #end if
     <!--<td align="center">$curShow.network</td>//-->
     <td align="center" style="color: #555555;font-weight:bold;">
-    #if $layout != 'simple':	
+    #if $layout != 'simple':
         #if $curShow.network:
-        	<img id="network" width="44.8" height="22.4" src="$sbRoot/images/network/${curShow.network.lower()}.png" alt="$curShow.network" title="$curShow.network" />
-    	#else:
-    		<img id="network" width="44.8" height="22.4" src="$sbRoot/images/network/nonetwork.png" alt="No Network" title="No Network" />
-		#end if
-	#else:
-		$curShow.network
-	#end if		
+            <img id="network" width="44.8" height="22.4" src="$sbRoot/images/network/${curShow.network.lower()}.png" alt="$curShow.network" title="$curShow.network" />
+        #else:
+            <img id="network" width="44.8" height="22.4" src="$sbRoot/images/network/nonetwork.png" alt="No Network" title="No Network" />
+        #end if
+    #else:
+        $curShow.network
+    #end if
     </td>
-    
+
 #if $curShow.quality in $qualityPresets:
     <td align="center"><span class="quality $qualityPresetStrings[$curShow.quality]">$qualityPresetStrings[$curShow.quality]</span></td>
 #else:
     <td align="center"><span class="quality Custom">Custom</span></td>
 #end if
-    <td align="center"><span style="display: none;">$dlStat</span><div id="progressbar$curShow.tvdbid" style="position:relative;"></div>
+    <td align="center">
+#if $layout != 'simple':
+        <div id="chart$curShow.tvdbid" style="width:100px; height:100px;"></div>
         <script type="text/javascript">
         <!--
-            \$(function() {
-               \$("\#progressbar$curShow.tvdbid").progressbar({
-       			value: parseInt($nom) * 100 / parseInt($den) / 1000 });
-               \$("\#progressbar$curShow.tvdbid").append( "<div class='progressbarText'>$dlStat</div>" )
-				var progressBarWidth = parseInt($nom) * 100 / parseInt($den) + "%"
-               \$("\#progressbar$curShow.tvdbid > .ui-progressbar-value").animate({ width: progressBarWidth }, 1000);
+            \$(document).ready(function() {
+                chart$curShow.tvdbid = \$.jqplot('chart$curShow.tvdbid', [[
+                                            ['Wants', $wants],
+                                            ['Snatched', $snatched],
+                                            ['Ignored', $ignored],
+                                            ['Downloaded', $downloaded],
+                                            ['Failed', $failed],
+                                            ['Skipped', $skipped],
+                                            ['Specials', $specials]
+                                        ]], {
+                                            seriesDefaults:{
+                                                renderer: \$.jqplot.PieRenderer,
+                                                rendererOptions: {
+                                                    showDataLabels: true,
+                                                    dataLabels: 'value',
+                                                    shadow: false,
+                                                    shadowDepth: 0,
+                                                    shadowAlpha: 0,
+                                                    padding: 2,
+                                                    fill: false,
+                                                    highlightMouseOver: false,
+                                                    highlightMouseDown: false,
+                                                }
+                                            },
+                                            seriesColors: [ "#F49AC1", "#8C8C8C", "#00A0FF", "#AAD450", "#FF0000", "#90D5EC", "#FC7A00" ],
+                                            //highlightColors: [ "#F49AC1", "#EFEFEF", "#90D5EC", "#AAD450", "#FF0000", "#90D5EC", "#FC7A00" ],
+                                            legend: {
+                                                show: false,
+                                            },
+                                            grid: {
+                                                drawGridlines: false,
+                                                drawBorder: false,
+                                                shadow: false,
+                                                drawBackground: false,
+                                                background: "rgba(255,255,255,0)",
+                                            }
+                                        });
             });
         //-->
         </script>
+#else:
+    <div class='simple-summary'>
+        <span class='good'>$downloaded</span>
+        <span class='snatched'>$snatched</span>
+        <span class='wanted'>$wants</span>
+        <span class='skippedignored'>
+            <math>
+                <mfrac>
+                    <mi class='ignored'>$ignored</mi>
+                    <mi class='skipped'>$skipped</mi>
+                </mfrac>
+            </math>
+        </span>
+        <span class='special'>$specials</span>
+        <span class='failed'>$failed</span>
+    </div>
+#end if
     </td>
     <td align="center"><img src="$sbRoot/images/#if int($curShow.paused) == 0 and $curShow.status != "Ended" then "yes16.png\" alt=\"Y\"" else "no16.png\" alt=\"N\""# width="16" height="16" /></td>
     <td align="center" style="color: #555555; font-weight: bold;">$curShow.status</td>
@@ -267,4 +328,5 @@ $myShowList.sort(lambda x, y: cmp(x.name, y.name))
 </tbody>
 </table>
 
+<script type="text/javascript" src="$sbRoot/js/tableClick.js?$sbPID"></script>
 #include $os.path.join($sickbeard.PROG_DIR,"gui/slick/interfaces/default/inc_bottom.tmpl")

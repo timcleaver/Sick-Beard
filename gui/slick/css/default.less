@@ -290,7 +290,7 @@ b { color:@text-color;}
 .rounded(5px);
 }
 
-tr.skipped,span.skipped {
+tr.skipped,span.skipped,td.skipped {
 background-color:#E9F7FB;
 color: #90D5EC;
 font-weight: bold;
@@ -300,7 +300,17 @@ padding:5px;
 b { color:@text-color;}
 }
 
-tr.good,span.good {
+tr.special,span.special,td.special {
+background-color:#FCCB9C;
+color: #FC7A00;
+font-weight: bold;
+font-size: 13px;
+padding:5px;
+.rounded(5px);
+b { color:@text-color;}
+}
+
+tr.good,span.good,td.good {
 background-color:#E2FFD8;
 color: #AAD450;
 padding:5px;
@@ -320,7 +330,7 @@ color: #F7B42C;
 b { color:@text-color;}
 }
 
-tr.wanted,span.wanted {
+tr.wanted,span.wanted,td.wanted {
 background-color:#FDEBF3;
 padding:5px;
 font-size: 13px;

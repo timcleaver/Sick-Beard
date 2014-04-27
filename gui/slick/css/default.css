@@ -462,7 +462,7 @@ width: 30%;
 
 .sickbeardTable td.status_column {
   font-weight: bold;
-  line-height: 20px;
+  line-height: 30px;
   text-align: center;
   width: 13%;
 	color: #555555;
@@ -576,9 +576,34 @@ span.unaired b {
   color: #343434;
 }
 tr.skipped,
-span.skipped {
-  background-color: #E9F7FB;
+span.skipped,
+mi.skipped {
+  font-weight: bold;
   color: #90D5EC;
+}
+span.ignored,
+mi.ignored {
+  font-weight: bold;
+  color: #00A0FF;
+}
+tr.skipped b,
+span.skipped b {
+  font-weight: bold;
+  color: #343434;
+}
+tr.skippedignored,
+span.skippedignored {
+  background-color: #E9F7FB;
+  font-size: 13px;
+  padding: 5px;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+}
+tr.failed,
+span.failed {
+  background-color: #FF8C8C;
+  color: #FF0000;
   font-weight: bold;
   font-size: 13px;
   padding: 5px;
@@ -586,8 +611,23 @@ span.skipped {
   -webkit-border-radius: 5px;
   border-radius: 5px;
 }
-tr.skipped b,
-span.skipped b {
+tr.failed b,
+span.failed b {
+  color: #343434;
+}
+tr.special,
+span.special {
+  background-color: #FCCB9C;
+  color: #FC7A00;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 5px;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+}
+tr.special b,
+span.special b {
   color: #343434;
 }
 tr.good,
@@ -644,7 +684,7 @@ span.snatched {
   padding: 5px;
   font-size: 13px;
   font-weight: bold;
-  color: #F49AC1;
+  color: #343434;
   -moz-border-radius: 5px;
   -webkit-border-radius: 5px;
   border-radius: 5px;
@@ -659,6 +699,7 @@ tr.wanted,
 tr.qual,
 tr.good,
 tr.skipped,
+tr.special,
 tr.unaired,
 tr.snatched {
   font-size: 14px;
@@ -1862,4 +1903,14 @@ pre {
     color: #343434;
     height: 37px;
     text-align: center;
+}
+div.simple-summary {
+	display: table;
+	width: 100%
+}
+
+div.simple-summary span {
+	display: table-cell;
+	text-align: center;
+	width: 16%;
 }

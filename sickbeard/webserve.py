@@ -2735,6 +2735,7 @@ class Home:
         epCounts[Overview.GOOD] = 0
         epCounts[Overview.UNAIRED] = 0
         epCounts[Overview.SNATCHED] = 0
+        epCounts[Overview.FAILED] = 0
 
         for curResult in sqlResults:
                 
