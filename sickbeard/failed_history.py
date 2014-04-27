@@ -23,7 +23,8 @@ import datetime
 
 from sickbeard import db
 from sickbeard import logger
-from sickbeard import common
+from sickbeard.common import Quality
+from sickbeard.common import WANTED, FAILED
 from sickbeard import exceptions
 from sickbeard.history import dateFormat
 
@@ -131,7 +132,7 @@ def revertEpisodes(show_obj, season, episodes):
                     ep_obj.status = history_eps[cur_episode]['old_status']
                 else:
                     log_str += _log_helper(u"WARNING: Episode not found in history. Setting it back to WANTED", logger.WARNING)
-                    ep_obj.status = common.WANTED
+                    ep_obj.status = WANTED
 
                 ep_obj.saveToDB()
     else:
@@ -145,12 +146,36 @@ def revertEpisodes(show_obj, season, episodes):
                     ep_obj.status = history_eps[ep_obj]['old_status']
                 else:
                     log_str += _log_helper(u"WARNING: Episode not found in history. Setting it back to WANTED", logger.WARNING)
-                    ep_obj.status = common.WANTED
+                    ep_obj.status = WANTED
 
                 ep_obj.saveToDB()
 
     return log_str
 
+def markFailed(show_obj, season, episodes):
+    log_str = u""
+
+    if len(episodes) > 0:
+        for cur_episode in episodes:
+            try:
+                ep_obj = show_obj.getEpisode(season, cur_episode)
+            except exceptions.EpisodeNotFoundException, e:
+                log_str += _log_helper(u"Unable to get episode, please set its status manually: " + exceptions.ex(e), logger.WARNING)
+                continue
+
+            with ep_obj.lock:
+                quality = Quality.splitCompositeStatus(ep_obj.status)[1]
+                ep_obj.status = Quality.compositeStatus(FAILED, quality)
+                ep_obj.saveToDB()
+    else:
+        # Whole season
+        for ep_obj in show_obj.getAllEpisodes(season):
+            with ep_obj.lock:
+                quality = Quality.splitCompositeStatus(ep_obj.status)[1]
+                ep_obj.status = Quality.compositeStatus(FAILED, quality)
+                ep_obj.saveToDB()
+
+    return log_str
 
 def logSnatch(searchResult):
     myDB = db.DBConnection("failed.db")

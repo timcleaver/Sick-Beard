@@ -49,7 +49,7 @@ from sickbeard import history
 
 from sickbeard import encodingKludge as ek
 
-from common import Quality, Overview
+from common import Quality, Overview, statusStrings
 from common import DOWNLOADED, SNATCHED, SNATCHED_PROPER, ARCHIVED, IGNORED, UNAIRED, WANTED, SKIPPED, UNKNOWN, FAILED
 from common import NAMING_DUPLICATE, NAMING_EXTEND, NAMING_LIMITED_EXTEND, NAMING_SEPARATED_REPEAT, NAMING_LIMITED_EXTEND_E_PREFIXED
 
@@ -81,6 +81,9 @@ class TVShow(object):
         self.lang = lang
         self.last_update_tvdb = 1
 
+        self.rls_ignore_words = ""
+        self.rls_require_words = ""
+
         self.lock = threading.Lock()
         self._isDirGood = False
 
@@ -91,8 +94,6 @@ class TVShow(object):
             raise exceptions.MultipleShowObjectsException("Can't create a show if it already exists")
 
         self.loadFromDB()
-
-        self.saveToDB()
 
     def _getLocation(self):
         # no dir check needed if missing show dirs are created during post-processing
@@ -141,7 +142,20 @@ class TVShow(object):
         sql_selection = sql_selection + " FROM tv_episodes tve WHERE showid = " + str(self.tvdbid)
 
         if season is not None:
-            sql_selection = sql_selection + " AND season = " + str(season)
+            if not self.air_by_date:
+                sql_selection = sql_selection + " AND season = " + str(season)
+            else:
+                segment_year, segment_month = map(int, season.split('-'))
+                min_date = datetime.date(segment_year, segment_month, 1)
+    
+                # it's easier to just hard code this than to worry about rolling the year over or making a month length map
+                if segment_month == 12:
+                    max_date = datetime.date(segment_year, 12, 31)
+                else:
+                    max_date = datetime.date(segment_year, segment_month + 1, 1) - datetime.timedelta(days=1)
+
+                sql_selection = sql_selection + " AND airdate >= " + str(min_date.toordinal()) + " AND airdate <= " + str(max_date.toordinal())
+
         if has_location:
             sql_selection = sql_selection + " AND location != '' "
 
@@ -238,7 +252,8 @@ class TVShow(object):
         if not ek.ek(os.path.isdir, self._location):
             logger.log(str(self.tvdbid) + u": Show dir doesn't exist, skipping NFO generation")
             return False
-
+        
+        logger.log(str(self.tvdbid) + u": Writing NFOs for show")
         for cur_provider in sickbeard.metadata_provider_dict.values():
             result = cur_provider.create_show_metadata(self) or result
 
@@ -455,16 +470,23 @@ class TVShow(object):
             return
 
     def getImages(self, fanart=None, poster=None):
-
-        poster_result = fanart_result = season_thumb_result = False
+        fanart_result = poster_result = banner_result = False
+        season_posters_result = season_banners_result = season_all_poster_result = season_all_banner_result = False
 
         for cur_provider in sickbeard.metadata_provider_dict.values():
-            logger.log("Running season folders for " + cur_provider.name, logger.DEBUG)
-            poster_result = cur_provider.create_poster(self) or poster_result
-            fanart_result = cur_provider.create_fanart(self) or fanart_result
-            season_thumb_result = cur_provider.create_season_thumbs(self) or season_thumb_result
+            # FIXME: Needs to not show this message if the option is not enabled?
+            logger.log(u"Running metadata routines for " + cur_provider.name, logger.DEBUG)
 
-        return poster_result or fanart_result or season_thumb_result
+            fanart_result = cur_provider.create_fanart(self) or fanart_result
+            poster_result = cur_provider.create_poster(self) or poster_result
+            banner_result = cur_provider.create_banner(self) or banner_result
+
+            season_posters_result = cur_provider.create_season_posters(self) or season_posters_result
+            season_banners_result = cur_provider.create_season_banners(self) or season_banners_result
+            season_all_poster_result = cur_provider.create_season_all_poster(self) or season_all_poster_result
+            season_all_banner_result = cur_provider.create_season_all_banner(self) or season_all_banner_result
+
+        return fanart_result or poster_result or banner_result or season_posters_result or season_banners_result or season_all_poster_result or season_all_banner_result
 
     def loadLatestFromTVRage(self):
 
@@ -678,6 +700,9 @@ class TVShow(object):
 
             self.last_update_tvdb = sqlResults[0]["last_update_tvdb"]
 
+            self.rls_ignore_words = sqlResults[0]["rls_ignore_words"]
+            self.rls_require_words = sqlResults[0]["rls_require_words"]
+
             if self.imdbid == "":
                 self.imdbid = sqlResults[0]["imdb_id"]                    
 
@@ -701,7 +726,7 @@ class TVShow(object):
 
             if not cache:
                 ltvdb_api_parms['cache'] = False
- 
+
             if self.lang:
                 ltvdb_api_parms['language'] = self.lang
 
@@ -716,10 +741,15 @@ class TVShow(object):
             self.name = myEp["seriesname"].strip()
         except AttributeError:
             raise tvdb_exceptions.tvdb_attributenotfound("Found %s, but attribute 'seriesname' was empty." % (self.tvdbid))    
-            
+
         self.genre = myEp['genre']
         self.network = myEp['network']
-        self.runtime = myEp['runtime']
+
+        if myEp['runtime']:
+            self.runtime = myEp['runtime']
+        else:
+            self.runtime = 0
+
         self.imdbid = myEp['imdb_id']
 
         if myEp["airs_dayofweek"] != None and myEp["airs_time"] != None:
@@ -807,56 +837,6 @@ class TVShow(object):
     
             logger.log(str(self.tvdbid) + u": Obtained info from IMDb ->" +  str(self.imdb_info), logger.DEBUG)
         
-    def loadNFO(self):
-
-        if not os.path.isdir(self._location):
-            logger.log(str(self.tvdbid) + u": Show dir doesn't exist, can't load NFO")
-            raise exceptions.NoNFOException("The show dir doesn't exist, no NFO could be loaded")
-
-        logger.log(str(self.tvdbid) + u": Loading show info from NFO")
-
-        xmlFile = ek.ek(os.path.join, self._location, "tvshow.nfo")
-
-        try:
-            xmlFileObj = open(xmlFile, 'r')
-            showXML = etree.ElementTree(file = xmlFileObj)
-
-            if showXML.findtext('title') == None or (showXML.findtext('tvdbid') == None and showXML.findtext('id') == None):
-                raise exceptions.NoNFOException("Invalid info in tvshow.nfo (missing name or id):" \
-                    + str(showXML.findtext('title')) + " " \
-                    + str(showXML.findtext('tvdbid')) + " " \
-                    + str(showXML.findtext('id')))
-
-            self.name = showXML.findtext('title')
-            if showXML.findtext('tvdbid') != None:
-                self.tvdbid = int(showXML.findtext('tvdbid'))
-            elif showXML.findtext('id'):
-                self.tvdbid = int(showXML.findtext('id'))
-            else:
-                raise exceptions.NoNFOException("Empty <id> or <tvdbid> field in NFO")
-
-        except (exceptions.NoNFOException, SyntaxError, ValueError), e:
-            logger.log(u"There was an error parsing your existing tvshow.nfo file: " + ex(e), logger.ERROR)
-            logger.log(u"Attempting to rename it to tvshow.nfo.old", logger.DEBUG)
-
-            try:
-                xmlFileObj.close()
-                ek.ek(os.rename, xmlFile, xmlFile + ".old")
-            except Exception, e:
-                logger.log(u"Failed to rename your tvshow.nfo file - you need to delete it or fix it: " + ex(e), logger.ERROR)
-            raise exceptions.NoNFOException("Invalid info in tvshow.nfo")
-
-        if showXML.findtext('studio') != None:
-            self.network = showXML.findtext('studio')
-        if self.network == None and showXML.findtext('network') != None:
-            self.network = ""
-        if showXML.findtext('genre') != None:
-            self.genre = showXML.findtext('genre')
-        else:
-            self.genre = ""
-
-        # TODO: need to validate the input, I'm assuming it's good until then
-
     def nextEpisode(self):
 
         logger.log(str(self.tvdbid) + ": Finding the episode which airs next", logger.DEBUG)
@@ -993,7 +973,9 @@ class TVShow(object):
                         "tvr_name": self.tvrname,
                         "lang": self.lang,
                         "imdb_id": self.imdbid,
-                        "last_update_tvdb": self.last_update_tvdb
+                        "last_update_tvdb": self.last_update_tvdb,
+                        "rls_ignore_words": self.rls_ignore_words,
+                        "rls_require_words": self.rls_require_words
                         }
 
         myDB.upsert("tv_shows", newValueDict, controlValueDict)
@@ -1024,51 +1006,54 @@ class TVShow(object):
 
     def wantEpisode(self, season, episode, quality, manualSearch=False):
 
-        logger.log(u"Checking if we want episode " + str(season) + "x" + str(episode) + " at quality " + Quality.qualityStrings[quality], logger.DEBUG)
+        logger.log(u"Checking if found episode " + str(season) + "x" + str(episode) + " is wanted at quality " + Quality.qualityStrings[quality], logger.DEBUG)
 
         # if the quality isn't one we want under any circumstances then just say no
         anyQualities, bestQualities = Quality.splitQuality(self.quality)
-        logger.log(u"any,best = " + str(anyQualities) + " " + str(bestQualities) + " and we are " + str(quality), logger.DEBUG)
+        logger.log(u"any,best = " + str(anyQualities) + " " + str(bestQualities) + " and found " + str(quality), logger.DEBUG)
 
         if quality not in anyQualities + bestQualities:
-            logger.log(u"I know for sure I don't want this episode, saying no", logger.DEBUG)
+            logger.log(u"Don't want this quality, ignoring found episode", logger.DEBUG)
             return False
 
         myDB = db.DBConnection()
         sqlResults = myDB.select("SELECT status FROM tv_episodes WHERE showid = ? AND season = ? AND episode = ?", [self.tvdbid, season, episode])
 
         if not sqlResults or not len(sqlResults):
-            logger.log(u"Unable to find the episode", logger.DEBUG)
+            logger.log(u"Unable to find a matching episode in database, ignoring found episode", logger.DEBUG)
             return False
 
         epStatus = int(sqlResults[0]["status"])
+        epStatus_text = statusStrings[epStatus]
 
-        logger.log(u"current episode status: " + str(epStatus), logger.DEBUG)
+        logger.log(u"Existing episode status: " + str(epStatus) + " (" + epStatus_text + ")", logger.DEBUG)
 
         # if we know we don't want it then just say no
         if epStatus in (SKIPPED, IGNORED, ARCHIVED) and not manualSearch:
-            logger.log(u"Ep is skipped, not bothering", logger.DEBUG)
+            logger.log(u"Existing episode status is skipped/ignored/archived, ignoring found episode", logger.DEBUG)
             return False
 
         # if it's one of these then we want it as long as it's in our allowed initial qualities
         if quality in anyQualities + bestQualities:
             if epStatus in (WANTED, UNAIRED, SKIPPED):
-                logger.log(u"Ep is wanted/unaired/skipped, definitely get it", logger.DEBUG)
+                logger.log(u"Existing episode status is wanted/unaired/skipped, getting found episode", logger.DEBUG)
                 return True
             elif manualSearch:
-                logger.log(u"Usually I would ignore this ep but because you forced the search I'm overriding the default and allowing the quality", logger.DEBUG)
+                logger.log(u"Usually ignoring found episode, but forced search allows the quality, getting found episode", logger.DEBUG)
                 return True
             else:
-                logger.log(u"This quality looks like something we might want but I don't know for sure yet", logger.DEBUG)
+                logger.log(u"Quality is on wanted list, need to check if it's better than existing quality", logger.DEBUG)
 
         curStatus, curQuality = Quality.splitCompositeStatus(epStatus)
 
         # if we are re-downloading then we only want it if it's in our bestQualities list and better than what we have
         if curStatus in Quality.DOWNLOADED + Quality.SNATCHED + Quality.SNATCHED_PROPER and quality in bestQualities and quality > curQuality:
-            logger.log(u"We already have this ep but the new one is better quality, saying yes", logger.DEBUG)
+            logger.log(u"Episode already exists but the found episode has better quality, getting found episode", logger.DEBUG)
             return True
+        else:
+            logger.log(u"Episode already exists and the found episode has same/lower quality, ignoring found episode", logger.DEBUG)
 
-        logger.log(u"None of the conditions were met so I'm just saying no", logger.DEBUG)
+        logger.log(u"None of the conditions were met, ignoring found episode", logger.DEBUG)
         return False
 
     def getOverview(self, epStatus):
@@ -1083,7 +1068,7 @@ class TVShow(object):
             return Overview.GOOD
         elif epStatus in Quality.DOWNLOADED + Quality.SNATCHED + Quality.SNATCHED_PROPER + Quality.FAILED:
 
-            anyQualities, bestQualities = Quality.splitQuality(self.quality)  #@UnusedVariable
+            anyQualities, bestQualities = Quality.splitQuality(self.quality)  # @UnusedVariable
             if bestQualities:
                 maxBestQuality = max(bestQualities)
             else:
@@ -1471,7 +1456,7 @@ class TVEpisode(object):
 
     def loadFromNFO(self, location):
 
-        if not os.path.isdir(self.show._location):
+        if not ek.ek(os.path.isdir, self.show._location):
             logger.log(str(self.show.tvdbid) + u": The show dir is missing, not bothering to try loading the episode NFO")
             return
 
@@ -1727,7 +1712,7 @@ class TVEpisode(object):
                 return ''
             return parse_result.release_group
 
-        epStatus, epQual = Quality.splitCompositeStatus(self.status)  #@UnusedVariable
+        epStatus, epQual = Quality.splitCompositeStatus(self.status)  # @UnusedVariable
 
         if sickbeard.NAMING_STRIP_YEAR:
             show_name = re.sub("\(\d+\)$", "", self.show.name).rstrip()
@@ -1759,7 +1744,7 @@ class TVEpisode(object):
                    '%D': str(self.airdate.day),
                    '%0M': '%02d' % self.airdate.month,
                    '%0D': '%02d' % self.airdate.day,
-                   '%RT': "PROPER" if self.is_proper else "",
+                   '%RT': 'PROPER' if self.is_proper else None,
                    }
 
     def _format_string(self, pattern, replace_map):
@@ -1771,6 +1756,7 @@ class TVEpisode(object):
 
         # do the replacements
         for cur_replacement in sorted(replace_map.keys(), reverse=True):
+            if replace_map[cur_replacement] is None: continue
             result_name = result_name.replace(cur_replacement, helpers.sanitizeFileName(replace_map[cur_replacement]))
             result_name = result_name.replace(cur_replacement.lower(), helpers.sanitizeFileName(replace_map[cur_replacement].lower()))
 
@@ -1803,7 +1789,10 @@ class TVEpisode(object):
             result_name = result_name.replace('%RG', 'SICKBEARD')
             result_name = result_name.replace('%rg', 'sickbeard')
             logger.log(u"Episode has no release name, replacing it with a generic one: " + result_name, logger.DEBUG)
-        
+
+        if not replace_map['%RT']:
+            result_name = re.sub('([ _.-]*)%RT([ _.-]*)', r'\2', result_name)
+
         # split off ep name part only
         name_groups = re.split(r'[\\/]', result_name)
 
@@ -1980,10 +1969,10 @@ class TVEpisode(object):
             logger.log(str(self.tvdbid) + u": File " + self.location + " is already named correctly, skipping", logger.DEBUG)
             return
 
-        related_files = postProcessor.PostProcessor(self.location)._list_associated_files(self.location)
+        related_files = postProcessor.PostProcessor(self.location).list_associated_files(self.location)
 
         if self.show.subtitles and sickbeard.SUBTITLES_DIR != '':
-            related_subs = postProcessor.PostProcessor(self.location)._list_associated_files(sickbeard.SUBTITLES_DIR, subtitles_only=True)
+            related_subs = postProcessor.PostProcessor(self.location).list_associated_files(sickbeard.SUBTITLES_DIR, subtitles_only=True)
             absolute_proper_subs_path = ek.ek(os.path.join, sickbeard.SUBTITLES_DIR, self.formatted_filename())
             
         logger.log(u"Files associated to " + self.location + ": " + str(related_files), logger.DEBUG)

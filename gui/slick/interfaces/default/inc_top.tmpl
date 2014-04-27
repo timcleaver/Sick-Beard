@@ -10,8 +10,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="robots" content="noindex">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;"/>
-
     <title>Sick Beard - alpha $sickbeard.version.SICKBEARD_VERSION - $title</title>
     <!--[if lt IE 9]>
          <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -27,12 +25,11 @@
     <link rel="stylesheet" type="text/css" href="$sbRoot/css/comingEpisodes.css?$sbPID" />
     <link rel="stylesheet" type="text/css" href="$sbRoot/css/config.css?$sbPID" />
     <link rel="stylesheet" type="text/css" href="$sbRoot/css/lib/jquery.pnotify.default.css?$sbPID" />
-    <link rel="stylesheet" type="text/css" href="$sbRoot/css/lib/jquery-ui-1.10.3.custom.css?$sbPID" />
+    <link rel="stylesheet" type="text/css" href="$sbRoot/css/lib/jquery-ui-1.10.4.custom.css?$sbPID" />
     <link rel="stylesheet" type="text/css" href="$sbRoot/css/browser.css?$sbPID" />
     <link rel="stylesheet" type="text/css" href="$sbRoot/css/superfish.css?$sbPID" />
     <link rel="stylesheet" type="text/css" href="$sbRoot/css/lib/tablesorter.css?$sbPID"/>
     <link rel="stylesheet" type="text/css" href="$sbRoot/css/lib/jquery.qtip-2.0.1.min.css?$sbPID"/>
-    <link rel="stylesheet" type="text/css" href="$sbRoot/css/jquery.jqplot.css?$sbPID"/>
     <link rel="stylesheet" type="text/css" media="only screen and (max-device-width: 480px)" href="$sbRoot/css/iphone.css?$sbPID" />
 
 
@@ -101,7 +98,7 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
 </style>
 
     <script type="text/javascript" src="$sbRoot/js/lib/jquery-1.8.3.min.js?$sbPID"></script>
-    <script type="text/javascript" src="$sbRoot/js/lib/jquery-ui-1.10.3.custom.min.js?$sbPID"></script>
+    <script type="text/javascript" src="$sbRoot/js/lib/jquery-ui-1.10.4.custom.min.js?$sbPID"></script>
     <script type="text/javascript" src="$sbRoot/js/lib/superfish-1.4.8.js?$sbPID"></script>
     <script type="text/javascript" src="$sbRoot/js/lib/supersubs-0.2b.js?$sbPID"></script>
     <script type="text/javascript" src="$sbRoot/js/lib/jquery.cookie.js?$sbPID"></script>
@@ -114,11 +111,7 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
     <script type="text/javascript" src="$sbRoot/js/lib/jquery.pnotify-1.0.2.min.js"></script>
     <script type="text/javascript" src="$sbRoot/js/lib/jquery.form-3.35.js?$sbPID"></script>
     <script type="text/javascript" src="$sbRoot/js/lib/jquery.ui.touch-punch-0.2.2.min.js?$sbPID"></script>
-	<script type="text/javascript" src="$sbRoot/js/script.js?$sbPID"></script>
-    <script type="text/javascript" src="$sbRoot/js/lib/jquery.expand-1.3.8.js?$sbPID"></script>
-    <script type="text/javascript" src="$sbRoot/js/lib/jquery.jqplot.min.js?$sbPID"></script>
-    <script type="text/javascript" src="$sbRoot/js/lib/jqplot.pieRenderer.min.js?$sbPID"></script>
-    <script type="text/javascript" src="$sbRoot/js/lib/jqplot.barRenderer.min.js?$sbPID"></script>
+  <script type="text/javascript" src="$sbRoot/js/script.js?$sbPID"></script>
 
     <script type="text/javascript" charset="utf-8">
     <!--
@@ -140,7 +133,7 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
         \$("#SubMenu a:contains('Delete')").addClass('btn').html('<span class="ui-icon ui-icon-trash pull-left"></span> Delete');
         \$("#SubMenu a:contains('Clear History')").addClass('btn confirm').html('<span class="ui-icon ui-icon-trash pull-left"></span> Clear History');
         \$("#SubMenu a:contains('Trim History')").addClass('btn confirm').html('<span class="ui-icon ui-icon-trash pull-left"></span> Trim History');
-        \$("#SubMenu a[href$='/errorlogs/clearerrors']").addClass('btn').html('<span class="ui-icon ui-icon-trash pull-left"></span> Clear Errors');
+        \$("#SubMenu a[href$='/errorlogs/clearerrors/']").addClass('btn').html('<span class="ui-icon ui-icon-trash pull-left"></span> Clear Errors');
         \$("#SubMenu a:contains('Re-scan')").addClass('btn').html('<span class="ui-icon ui-icon-refresh pull-left"></span> Re-scan');
         \$("#SubMenu a:contains('Backlog Overview')").addClass('btn').html('<span class="ui-icon ui-icon-refresh pull-left"></span> Backlog Overview');
         \$("#SubMenu a[href$='/home/updatePLEX/']").addClass('btn').html('<span class="ui-icon ui-icon-refresh pull-left"></span> Update PLEX');
@@ -161,16 +154,15 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
         \$("#SubMenu a:contains('Notification')").addClass('btn').html('<span class="ui-icon ui-icon-note pull-left"></span> Notification');
         \$("#SubMenu a:contains('Update show in XBMC')").addClass('btn').html('<span class="ui-icon ui-icon-refresh pull-left"></span> Update show in XBMC');
         \$("#SubMenu a[href$='/home/updateXBMC/']").addClass('btn').html('<span class="ui-icon ui-icon-refresh pull-left"></span> Update XBMC');
-		
-	}
-    \$(document).ready(function(){ 
+  }
+    \$(document).ready(function(){
 
-        initActions();
-        \$("ul.sf-menu").supersubs({ 
-            minWidth:    12,   // minimum width of sub-menus in em units 
-            maxWidth:    27,   // maximum width of sub-menus in em units 
-            extraWidth:  1     // extra width can ensure lines don't sometimes turn over 
-                               // due to slight rounding differences and font-family 
+      initActions();
+        \$("ul.sf-menu").supersubs({
+            minWidth:    12,   // minimum width of sub-menus in em units
+            maxWidth:    27,   // maximum width of sub-menus in em units
+            extraWidth:  1     // extra width can ensure lines don't sometimes turn over
+                               // due to slight rounding differences and font-family
         }).superfish({
             delay:         150,
             disableHI:     true,
@@ -209,6 +201,8 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
         });
 
     });
+
+
 //-->
 </script>
 </head>
@@ -241,10 +235,14 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
                             <li><a href="$sbRoot/manage/"><img src="$sbRoot/images/menu/manage16.png" alt="" width="16" height="16" />Mass Update</a></li>
                             <li><a href="$sbRoot/manage/backlogOverview/"><img src="$sbRoot/images/menu/backlog_view16.png" alt="" width="16" height="16" />Backlog Overview</a></li>
                             <li><a href="$sbRoot/manage/manageSearches/"><img src="$sbRoot/images/menu/managesearches16.png" alt="" width="16" height="16" />Manage Searches</a></li>
-                            #if $sickbeard.USE_TORRENTS and $sickbeard.TORRENT_METHOD != 'blackhole':
+                            #if $sickbeard.USE_TORRENTS and $sickbeard.TORRENT_METHOD != 'blackhole' \
+							and ($sickbeard.ENABLE_HTTPS and $sickbeard.TORRENT_HOST[:5] == 'https' \
+							or not $sickbeard.ENABLE_HTTPS and $sickbeard.TORRENT_HOST[:5] == 'http:'):                            
                               <li><a href="$sbRoot/manage/manageTorrents/"><img src="$sbRoot/images/menu/bittorrent.png" alt="" width="16" height="16" />Manage Torrents</a></li>
                             #end if
-                            <li><a href="$sbRoot/manage/failedDownloads/"><img src="$sbRoot/images/menu/failed_download.png" alt="" width="16" height="16" />Failed Downloads</a></li>
+							#if $sickbeard.USE_FAILED_DOWNLOADS:
+                            	<li><a href="$sbRoot/manage/failedDownloads/"><img src="$sbRoot/images/menu/failed_download.png" alt="" width="16" height="16" />Failed Downloads</a></li>
+                            #end if
                             <li><a href="$sbRoot/manage/episodeStatuses/"><img src="$sbRoot/images/menu/backlog16.png" alt="" width="16" height="16" />Episode Status Management</a></li>
                             #if $sickbeard.USE_SUBTITLES:
                               <li><a href="$sbRoot/manage/subtitleMissed/"><img src="$sbRoot/images/menu/backlog16.png" alt="" width="16" height="16" />Missed Subtitle Management</a></li>
@@ -275,7 +273,6 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
     </div>
 </div>
 
-
 <div id="contentWrapper">
     <div id="content">
       #if $varExists('submenu'):
@@ -283,7 +280,7 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
       <span>
       #set $first = True
       #for $menuItem in $submenu:
-          #if 'requires' not in $menuItem or $menuItem.requires():
+	  	#if 'requires' not in $menuItem or $menuItem.requires():      
               #if type($menuItem.path) == dict:
                   #if $first then "" else "</span><span>"#<b>$menuItem.title</b>
                   #set $first = False
@@ -296,7 +293,7 @@ a > i.icon-question-sign { background-image: url("$sbRoot/images/glyphicons-half
                   #if $first then "" else ""#<a href="$sbRoot/$menuItem.path" #if 'confirm' in $menuItem then "class=\"confirm\"" else "" #>$menuItem.title</a>
                   #set $first = False
               #end if
-          #end if
+      	#end if
       #end for
       </span>
       </div>

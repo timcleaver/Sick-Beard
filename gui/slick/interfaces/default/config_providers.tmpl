@@ -115,7 +115,7 @@ var show_nzb_providers = #if $sickbeard.USE_NZBS then "true" else "false"#;
                                 <span class="component-title jumbo">Configure Provider:</span>
                                 <span class="component-desc">
                                     #set $provider_config_list = []
-                                    #for $cur_provider in ("thepiratebay", "tvtorrents", "btn", "torrentleech", "iptorrents", "omgwtfnzbs", "kickasstorrents", "sceneaccess", "hdbits"):
+                                    #for $cur_provider in ("thepiratebay", "tvtorrents", "btn", "torrentleech", "iptorrents", "omgwtfnzbs", "kickasstorrents", "sceneaccess", "hdbits", "nextgen", "speedcd", "binsearch"):
                                         #set $cur_provider_obj = $sickbeard.providers.getProviderClass($cur_provider)
                                         #if $cur_provider_obj.providerType == $GenericProvider.NZB and not $sickbeard.USE_NZBS:
                                         	#continue
@@ -319,6 +319,21 @@ var show_nzb_providers = #if $sickbeard.USE_NZBS then "true" else "false"#;
                         </div>
 </div><!-- /sceneaccessDiv //-->
 
+<div class="providerDiv" id="hdtorrentsDiv">
+                        <div class="field-pair">
+                            <label class="clearfix">
+                                <span class="component-title">Username:</span>
+                                <input class="component-desc" type="text" name="hdtorrents_username" value="$sickbeard.HDTORRENTS_USERNAME" size="40" />
+                            </label>
+                        </div>
+                        <div class="field-pair">
+                            <label class="clearfix">
+                                <span class="component-title">Password:</span>
+                                <input class="component-desc" type="password" name="hdtorrents_password" value="$sickbeard.HDTORRENTS_PASSWORD" size="40" />
+                            </label>
+                        </div>
+</div><!-- /sceneaccessDiv //-->
+
 <div class="providerDiv" id="torrentdayDiv">
                         <div class="field-pair">
                             <label class="clearfix">
@@ -339,7 +354,22 @@ var show_nzb_providers = #if $sickbeard.USE_NZBS then "true" else "false"#;
                                 <span class="component-desc">This will only download <b>[FreeLeech]</b> torrents.</span>
                             </label>
                         </div>
-</div><!-- /iptorrentsDiv //-->
+</div><!-- /torrentsDayDiv //-->
+
+<div class="providerDiv" id="nextgenDiv">
+                        <div class="field-pair">
+                            <label class="clearfix">
+                                <span class="component-title">Username:</span>
+                                <input class="component-desc" type="text" name="nextgen_username" value="$sickbeard.NEXTGEN_USERNAME" size="40" />
+                            </label>
+                        </div>
+                        <div class="field-pair">
+                            <label class="clearfix">
+                                <span class="component-title">Password:</span>
+                                <input class="component-desc" type="password" name="nextgen_password" value="$sickbeard.NEXTGEN_PASSWORD" size="40" />
+                            </label>
+                        </div>
+</div><!-- /nextgenDiv //-->
 
 <div class="providerDiv" id="hdbitsDiv">
                         <div class="field-pair">
@@ -355,6 +385,43 @@ var show_nzb_providers = #if $sickbeard.USE_NZBS then "true" else "false"#;
                             </label>
                         </div>
                     </div><!-- /hdbitsDiv //-->   
+
+<div class="providerDiv" id="speedcdDiv">
+                        <div class="field-pair">
+                            <label class="clearfix">
+                                <span class="component-title">Username:</span>
+                                <input class="component-desc" type="text" name="speedcd_username" value="$sickbeard.SPEEDCD_USERNAME" size="40" />
+                            </label>
+                        </div>
+                        <div class="field-pair">
+                            <label class="clearfix">
+                                <span class="component-title">Password:</span>
+                                <input class="component-desc" type="password" name="speedcd_password" value="$sickbeard.SPEEDCD_PASSWORD" size="40" />
+                            </label>
+                        </div>
+                        <div class="field-pair">
+                            <input type="checkbox" name="speedcd_freeleech" id="speedcd_freeleech" #if $sickbeard.SPEEDCD_FREELEECH then "checked=\"checked\"" else ""#/>
+                            <label class="clearfix" for="iptorrents_freeleech">
+                                <span class="component-title">FreeLeech</span>
+                                <span class="component-desc">This will only download <b>[FreeLeech]</b> torrents.</span>
+                            </label>
+                        </div>
+</div><!-- /speedcdDiv //-->
+
+<div class="providerDiv" id="binsearchDiv">
+			<div class="field-pair">
+				<label class="clearfix">
+					<span class="component-title">BinSearch Max results by call value</span>
+					<input class="component-desc" type="text" name="binsearch_max" value="$sickbeard.BINSEARCH_MAX" size="4" />
+				</label>
+			</div>
+			<div class="field-pair">
+				<label class="clearfix">
+					<span class="component-title">BinSearch group to collect</span>
+					<input class="component-desc" type="text" name="binsearch_alt" value="$sickbeard.BINSEARCH_ALT" size="60" />
+				</label>
+			</div>
+</div><!-- /binsearchDiv //-->
 
 <!-- end div for editing providers -->
 
@@ -405,7 +472,7 @@ var show_nzb_providers = #if $sickbeard.USE_NZBS then "true" else "false"#;
                             </label>
                             <label class="nocheck clearfix">
                                 <span class="component-title">&nbsp;</span>
-                                <span class="component-desc">(leave blank if not required)</span>
+                                <span class="component-desc">(if not required, type 0)</span>
                             </label>
                         </div>
             <div id="newznab_add_div">

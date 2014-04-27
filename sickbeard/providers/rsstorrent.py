@@ -17,9 +17,7 @@
 
 
 import os
-import xml.dom.minidom
 import re
-from urlparse import urlparse, urljoin
 
 import sickbeard
 import generic
@@ -32,7 +30,6 @@ from sickbeard import clients
 from sickbeard.exceptions import ex
 
 from lib import requests
-from bs4 import BeautifulSoup
 from lib.bencode import bdecode
 
 class TorrentRssProvider(generic.TorrentProvider):
@@ -132,13 +129,13 @@ class TorrentRssProvider(generic.TorrentProvider):
             self.session = requests.Session()
         
         try:
-            response = self.session.get(url)
+            response = self.session.get(url, verify=False)
         except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError), e:
             logger.log(u"Error loading "+self.name+" URL: " + ex(e), logger.ERROR)
             return None
             
         if response.status_code != 200:
-            logger.log(self.name + u" page requested with url " + url +" returned status code is " + str(response.status_code) + ': ' + clients.http_error_code[response.status_code], logger.WARNING)
+            logger.log(self.name + u" page requested with url " + url + " returned status code is " + str(response.status_code) + ': ' + clients.http_error_code[response.status_code], logger.WARNING)
             return None
 
         return response.content
@@ -176,10 +173,10 @@ class TorrentRssCache(tvcache.TVCache):
         (title, url) = self.provider._get_title_and_url(item)
         if not title or not url:
             logger.log(u"The XML returned from the RSS feed is incomplete, this result is unusable", logger.ERROR)
-            return
+            return None
         
         logger.log(u"Adding item from RSS to cache: " + title, logger.DEBUG)
-        self._addCacheEntry(title, url)
+        return self._addCacheEntry(title, url)
 
     def _remove_namespace(self, item):
         """Remove namespace from the xml document in place"""

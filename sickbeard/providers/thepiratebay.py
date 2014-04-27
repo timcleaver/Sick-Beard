@@ -16,15 +16,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import with_statement
+
 import re
 import urllib, urllib2
 import sys
 import os
+import datetime
 
 import sickbeard
 import generic
 from sickbeard.common import Quality
 from sickbeard.name_parser.parser import NameParser, InvalidNameException
+from sickbeard import db
+from sickbeard import classes
 from sickbeard import logger
 from sickbeard import tvcache
 from sickbeard import helpers
@@ -32,6 +37,7 @@ from sickbeard.show_name_helpers import allPossibleShowNames, sanitizeSceneName
 from sickbeard.common import Overview 
 from sickbeard.exceptions import ex
 from sickbeard import encodingKludge as ek
+from sickbeard import clients
 from lib import requests
 from lib.unidecode import unidecode
 
@@ -59,7 +65,7 @@ class ThePirateBayProvider(generic.TorrentProvider):
         
         self.proxy = ThePirateBayWebproxy() 
         
-        self.url = 'http://pirateproxy.net/'
+        self.url = 'http://thepiratebay.se/'
 
         self.searchurl = self.url + 'search/%s/0/7/200'  # order by seed       
 
@@ -191,7 +197,7 @@ class ThePirateBayProvider(generic.TorrentProvider):
         
         return [search_string]
 
-    def _get_episode_search_strings(self, ep_obj):
+    def _get_episode_search_strings(self, ep_obj, add_string=''):
        
         search_string = {'Episode': []}
        
@@ -207,12 +213,14 @@ class ThePirateBayProvider(generic.TorrentProvider):
         else:
             for show_name in set(allPossibleShowNames(ep_obj.show)):
                 ep_string = sanitizeSceneName(show_name) + ' ' + \
-                sickbeard.config.naming_ep_type[2] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode} + '*|' + \
-                sickbeard.config.naming_ep_type[0] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode} + '*|' + \
-                sickbeard.config.naming_ep_type[3] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode} + '*' \
+                sickbeard.config.naming_ep_type[2] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode} + '|' + \
+                sickbeard.config.naming_ep_type[0] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode} + '|' + \
+                sickbeard.config.naming_ep_type[3] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode}
 
-                search_string['Episode'].append(ep_string)
-    
+                ep_string += ' %s' %add_string
+
+                search_string['Episode'].append(re.sub('\s+', ' ', ep_string))
+
         return [search_string]
 
     def _doSearch(self, search_params, show=None):
@@ -286,22 +294,26 @@ class ThePirateBayProvider(generic.TorrentProvider):
     def getURL(self, url, headers=None):
 
         if not headers:
-            headers = []
+            headers = {}
 
         # Glype Proxies does not support Direct Linking.
         # We have to fake a search on the proxy site to get data
         if self.proxy.isEnabled():
-            headers.append(('Referer', self.proxy.getProxyURL()))
+            headers.update({'referer': self.proxy.getProxyURL()})
             
         result = None
 
         try:
-            result = helpers.getURL(url, headers=headers)
-        except (urllib2.HTTPError, IOError), e:
-            logger.log(u"Error loading " + self.name + " URL: " + str(sys.exc_info()) + " - " + ex(e), logger.ERROR)
+            r = requests.get(url, headers=headers)
+        except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError), e:
+            logger.log(u"Error loading "+self.name+" URL: " + str(sys.exc_info()) + " - " + ex(e), logger.ERROR)
             return None
 
-        return result
+        if r.status_code != 200:
+            logger.log(self.name + u" page requested with url " + url +" returned status code is " + str(r.status_code) + ': ' + clients.http_error_code[r.status_code], logger.WARNING)
+            return None
+
+        return r.content
 
     def downloadResult(self, result):
         """
@@ -327,15 +339,41 @@ class ThePirateBayProvider(generic.TorrentProvider):
         magnetFileContent = r.content
 
         try:    
-            fileOut = open(magnetFileName, 'wb')
-            fileOut.write(magnetFileContent)
-            fileOut.close()
+            with open(magnetFileName, 'wb') as fileOut:
+                fileOut.write(magnetFileContent)
+                
             helpers.chmodAsParent(magnetFileName)
-        except IOError, e:
+        
+        except EnvironmentError, e:
             logger.log("Unable to save the file: " + ex(e), logger.ERROR)
             return False
+        
         logger.log(u"Saved magnet link to " + magnetFileName + " ", logger.MESSAGE)
         return True
+
+    def findPropers(self, search_date=datetime.datetime.today()):
+
+        results = []
+
+        sqlResults = db.DBConnection().select('SELECT s.show_name, e.showid, e.season, e.episode, e.status, e.airdate FROM tv_episodes AS e' +
+                                              ' INNER JOIN tv_shows AS s ON (e.showid = s.tvdb_id)' +
+                                              ' WHERE e.airdate >= ' + str(search_date.toordinal()) +
+                                              ' AND (e.status IN (' + ','.join([str(x) for x in Quality.DOWNLOADED]) + ')' +
+                                              ' OR (e.status IN (' + ','.join([str(x) for x in Quality.SNATCHED]) + ')))'
+                                              )
+        if not sqlResults:
+            return []
+
+        for sqlShow in sqlResults:
+            curShow = helpers.findCertainShow(sickbeard.showList, int(sqlShow["showid"]))
+            curEp = curShow.getEpisode(int(sqlShow["season"]), int(sqlShow["episode"]))
+            searchString = self._get_episode_search_strings(curEp, add_string='PROPER|REPACK')
+
+            for item in self._doSearch(searchString[0]):
+                title, url = self._get_title_and_url(item)
+                results.append(classes.Proper(title, url, datetime.datetime.today()))
+
+        return results
 
 
 class ThePirateBayCache(tvcache.TVCache):
@@ -363,20 +401,26 @@ class ThePirateBayCache(tvcache.TVCache):
         logger.log(u"Clearing " + self.provider.name + " cache and updating with new information")
         self._clearCache()
 
+        ql = []
         for result in rss_results:
             item = (result[0], result[1])
-            self._parseItem(item)
+            ci = self._parseItem(item)
+            if ci is not None:
+                ql.append(ci)
+
+        myDB = self._getDB()
+        myDB.mass_action(ql)
 
     def _parseItem(self, item):
 
         (title, url) = item
 
         if not title or not url:
-            return
+            return None
 
         logger.log(u"Adding item to cache: " + title, logger.DEBUG)
 
-        self._addCacheEntry(title, url)
+        return self._addCacheEntry(title, url)
 
 class ThePirateBayWebproxy:
     

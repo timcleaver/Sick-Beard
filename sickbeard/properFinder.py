@@ -52,9 +52,10 @@ class ProperFinder():
         logger.log(u"Checking proper time", logger.DEBUG)
 
         hourDiff = datetime.datetime.today().time().hour - updateTime.hour
+        dayDiff = (datetime.date.today() - self._get_lastProperSearch()).days
 
         # if it's less than an interval after the update time then do an update
-        if hourDiff >= 0 and hourDiff < self.updateInterval.seconds / 3600:
+        if hourDiff >= 0 and hourDiff < self.updateInterval.seconds / 3600 or dayDiff >=1:
             logger.log(u"Beginning the search for new propers")
         else:
             return
@@ -62,6 +63,8 @@ class ProperFinder():
         propers = self._getProperList()
 
         self._downloadPropers(propers)
+        
+        self._set_lastProperSearch(datetime.datetime.today().toordinal())
 
     def _getProperList(self):
 
@@ -150,17 +153,26 @@ class ProperFinder():
                 continue
 
             if not show_name_helpers.filterBadReleases(curProper.name):
-                logger.log(u"Proper " + curProper.name + " isn't a valid scene release that we want, igoring it", logger.DEBUG)
+                logger.log(u"Proper " + curProper.name + " isn't a valid scene release that we want, ignoring it", logger.DEBUG)
+                continue
+
+            show = helpers.findCertainShow(sickbeard.showList, curProper.tvdbid)
+            if not show:
+                logger.log(u"Unable to find the show with tvdbid " + str(curProper.tvdbid), logger.ERROR)
+                continue
+
+            if show.rls_ignore_words and search.filter_release_name(curProper.name, show.rls_ignore_words):
+                logger.log(u"Ignoring " + curProper.name + " based on ignored words filter: " + show.rls_ignore_words, logger.MESSAGE)
+                continue
+
+            if show.rls_require_words and not search.filter_release_name(curProper.name, show.rls_require_words):
+                logger.log(u"Ignoring " + curProper.name + " based on required words filter: " + show.rls_require_words, logger.MESSAGE)
                 continue
 
             # if we have an air-by-date show then get the real season/episode numbers
             if curProper.season == -1 and curProper.tvdbid:
-                showObj = helpers.findCertainShow(sickbeard.showList, curProper.tvdbid)
-                if not showObj:
-                    logger.log(u"This should never have happened, post a bug about this!", logger.ERROR)
-                    raise Exception("BAD STUFF HAPPENED")
 
-                tvdb_lang = showObj.lang
+                tvdb_lang = show.lang
                 # There's gotta be a better way of doing this but we don't wanna
                 # change the language value elsewhere
                 ltvdb_api_parms = sickbeard.TVDB_API_PARMS.copy()
@@ -240,9 +252,31 @@ class ProperFinder():
                 result.quality = curProper.quality
 
                 # snatch it
-                downloadResult = search.snatchEpisode(result, SNATCHED_PROPER)
-
-                return downloadResult
+                search.snatchEpisode(result, SNATCHED_PROPER)
 
     def _genericName(self, name):
         return name.replace(".", " ").replace("-", " ").replace("_", " ").lower()
+
+    def _set_lastProperSearch(self, when):
+
+        logger.log(u"Setting the last Proper search in the DB to " + str(when), logger.DEBUG)
+
+        myDB = db.DBConnection()
+        sqlResults = myDB.select("SELECT * FROM info")
+
+        if len(sqlResults) == 0:
+            myDB.action("INSERT INTO info (last_backlog, last_TVDB, last_proper_search) VALUES (?,?,?)", [0, 0, str(when)])
+        else:
+            myDB.action("UPDATE info SET last_proper_search=" + str(when))
+
+    def _get_lastProperSearch(self):
+
+        myDB = db.DBConnection()
+        sqlResults = myDB.select("SELECT * FROM info")
+
+        try:
+            last_proper_search = datetime.date.fromordinal(int(sqlResults[0]["last_proper_search"]))
+        except:
+            return datetime.date.fromordinal(1)
+
+        return last_proper_search

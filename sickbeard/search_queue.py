@@ -199,7 +199,7 @@ class BacklogQueueItem(generic_queue.QueueItem):
             statusResults = myDB.select("SELECT status FROM tv_episodes WHERE showid = ? AND airdate >= ? AND airdate <= ?",
                                         [self.show.tvdbid, min_date.toordinal(), max_date.toordinal()])
 
-        anyQualities, bestQualities = common.Quality.splitQuality(self.show.quality) #@UnusedVariable
+        anyQualities, bestQualities = common.Quality.splitQuality(self.show.quality)  # @UnusedVariable
         self.wantSeason = self._need_any_episodes(statusResults, bestQualities)
 
     def execute(self):
@@ -210,8 +210,9 @@ class BacklogQueueItem(generic_queue.QueueItem):
 
         # download whatever we find
         for curResult in results:
-            search.snatchEpisode(curResult)
-            time.sleep(5)
+            if curResult:
+                search.snatchEpisode(curResult)
+                time.sleep(5)
 
         self.finish()
 
@@ -253,10 +254,13 @@ class FailedQueueItem(generic_queue.QueueItem):
         generic_queue.QueueItem.execute(self)
 
         if self.ep_obj:
-
-            failed_history.revertEpisodes(self.show, self.ep_obj.season, [self.ep_obj.episode])
-            failed_history.logFailed(self.ep_obj.release_name)
-
+            try:
+                ep_release_name = failed_history.findRelease(self.show.tvdbid, self.ep_obj.season, self.ep_obj.episode)
+                failed_history.revertEpisodes(self.show, self.ep_obj.season, [self.ep_obj.episode])
+                failed_history.logFailed(ep_release_name)
+            except:
+                pass
+            
             foundEpisode = search.findEpisode(self.ep_obj, manualSearch=True)
             result = False
 
@@ -281,7 +285,7 @@ class FailedQueueItem(generic_queue.QueueItem):
             myDB = db.DBConnection()
     
             if not self.show.air_by_date:
-                sqlResults = myDB.select("SELECT episode, release_name FROM tv_episodes WHERE showid = ? AND season = ? AND status IN (" + ",".join([str(x) for x in common.Quality.FAILED]) + ")", [self.show.tvdbid, self.segment])
+                sqlResults = myDB.select("SELECT episode FROM tv_episodes WHERE showid = ? AND season = ? AND status IN (" + ",".join([str(x) for x in common.Quality.FAILED]) + ")", [self.show.tvdbid, self.segment])
             else:
                 segment_year, segment_month = map(int, self.segment.split('-'))
                 min_date = datetime.date(segment_year, segment_month, 1)
@@ -292,12 +296,16 @@ class FailedQueueItem(generic_queue.QueueItem):
                 else:
                     max_date = datetime.date(segment_year, segment_month + 1, 1) - datetime.timedelta(days=1)
     
-                sqlResults = myDB.select("SELECT episode, release_name FROM tv_episodes WHERE showid = ? AND airdate >= ? AND airdate <= ? AND status IN (" + ",".join([str(x) for x in common.Quality.FAILED]) + ")",
+                sqlResults = myDB.select("SELECT episode FROM tv_episodes WHERE showid = ? AND airdate >= ? AND airdate <= ? AND status IN (" + ",".join([str(x) for x in common.Quality.FAILED]) + ")",
                                             [self.show.tvdbid, min_date.toordinal(), max_date.toordinal()])
             
             for result in sqlResults:
-                failed_history.revertEpisodes(self.show, self.segment, [result["episode"]])
-                failed_history.logFailed(result["release_name"])
+                try:
+                    ep_release_name = failed_history.findRelease(self.show.tvdbid, self.ep_obj.season, self.ep_obj.episode)
+                    failed_history.revertEpisodes(self.show, self.segment, [result["episode"]])
+                    failed_history.logFailed(ep_release_name)
+                except:
+                    pass
 
                 results = search.findSeason(self.show, self.segment)
 

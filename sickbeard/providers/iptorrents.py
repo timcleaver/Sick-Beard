@@ -18,12 +18,16 @@
 
 import re
 import traceback
+import datetime
 
 import sickbeard
 import generic
 from sickbeard.common import Quality
 from sickbeard import logger
 from sickbeard import tvcache
+from sickbeard import db
+from sickbeard import classes
+from sickbeard import helpers
 from sickbeard import show_name_helpers
 from sickbeard.common import Overview 
 from sickbeard.exceptions import ex
@@ -115,8 +119,8 @@ class IPTorrentsProvider(generic.TorrentProvider):
         
         return [search_string]
 
-    def _get_episode_search_strings(self, ep_obj):
-       
+    def _get_episode_search_strings(self, ep_obj, add_string=''):
+
         search_string = {'Episode': []}
        
         if not ep_obj:
@@ -129,9 +133,9 @@ class IPTorrentsProvider(generic.TorrentProvider):
         else:
             for show_name in set(show_name_helpers.allPossibleShowNames(ep_obj.show)):
                 ep_string = show_name_helpers.sanitizeSceneName(show_name) +' '+ \
-                sickbeard.config.naming_ep_type[2] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode}
+                sickbeard.config.naming_ep_type[2] % {'seasonnumber': ep_obj.season, 'episodenumber': ep_obj.episode} + ' %s' %add_string
 
-                search_string['Episode'].append(ep_string)
+                search_string['Episode'].append(re.sub('\s+', ' ', ep_string))
     
         return [search_string]
 
@@ -198,12 +202,15 @@ class IPTorrentsProvider(generic.TorrentProvider):
                         if not torrent_name or not torrent_download_url:
                             continue
 
-                        item = torrent_name, torrent_download_url
+                        item = torrent_name, torrent_download_url, torrent_seeders
                         logger.log(u"Found result: " + torrent_name + " (" + torrent_details_url + ")", logger.DEBUG)
                         items[mode].append(item)
 
                 except Exception, e:
                     logger.log(u"Failed parsing " + self.name + " Traceback: "  + traceback.format_exc(), logger.ERROR)
+
+            #For each search mode sort all the items by seeders
+            items[mode].sort(key=lambda tup: tup[2], reverse=True)
 
             results += items[mode]  
                 
@@ -211,7 +218,7 @@ class IPTorrentsProvider(generic.TorrentProvider):
 
     def _get_title_and_url(self, item):
         
-        title, url = item
+        title, url, __ = item
         
         if url:
             url = str(url).replace('&amp;','&')
@@ -237,7 +244,32 @@ class IPTorrentsProvider(generic.TorrentProvider):
             return None
 
         return response.content
-       
+
+    def findPropers(self, search_date=datetime.datetime.today()):
+
+        results = []
+
+        sqlResults = db.DBConnection().select('SELECT s.show_name, e.showid, e.season, e.episode, e.status, e.airdate FROM tv_episodes AS e' +
+                                              ' INNER JOIN tv_shows AS s ON (e.showid = s.tvdb_id)' +
+                                              ' WHERE e.airdate >= ' + str(search_date.toordinal()) +
+                                              ' AND (e.status IN (' + ','.join([str(x) for x in Quality.DOWNLOADED]) + ')' +
+                                              ' OR (e.status IN (' + ','.join([str(x) for x in Quality.SNATCHED]) + ')))'
+                                              )
+        if not sqlResults:
+            return []
+
+        for sqlShow in sqlResults:
+            curShow = helpers.findCertainShow(sickbeard.showList, int(sqlShow["showid"]))
+            curEp = curShow.getEpisode(int(sqlShow["season"]), int(sqlShow["episode"]))
+            searchString = self._get_episode_search_strings(curEp, add_string='PROPER|REPACK')
+
+            for item in self._doSearch(searchString[0]):
+                title, url = self._get_title_and_url(item)
+                results.append(classes.Proper(title, url, datetime.datetime.today()))
+
+        return results
+
+
 class IPTorrentsCache(tvcache.TVCache):
 
     def __init__(self, provider):
@@ -263,19 +295,24 @@ class IPTorrentsCache(tvcache.TVCache):
         logger.log(u"Clearing " + self.provider.name + " cache and updating with new information")
         self._clearCache()
 
+        ql = []
         for result in rss_results:
-            item = (result[0], result[1])
-            self._parseItem(item)
-            
+            ci = self._parseItem(result)
+            if ci is not None:
+                ql.append(ci)
+
+        myDB = self._getDB()
+        myDB.mass_action(ql)
+
     def _parseItem(self, item):
 
-        (title, url) = item
+        (title, url, __) = item
 
         if not title or not url:
-            return
+            return None
 
         logger.log(u"Adding item to cache: " + title, logger.DEBUG)
 
-        self._addCacheEntry(title, url)            
+        return self._addCacheEntry(title, url)
 
 provider = IPTorrentsProvider()
